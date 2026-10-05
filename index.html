@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="NOW THE PRIME — Drop 002, футболка «The path is the prize». Тираж 25 штук. Your prime time is now.">
+<meta property="og:title" content="NOW THE PRIME — Drop 002">
+<meta property="og:description" content="Футболка «The path is the prize». Тираж 25 штук.">
+<meta property="og:image" content="img/tee-front.jpg">
+<link rel="icon" href="img/logo-black.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+<title>NOW THE PRIME</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Prata&family=Tenor+Sans&display=swap">
+<style>
+/* Layout: a white boutique. Black Didone wordmark and the product side by side, wide margins and hairlines; one black band for the manifesto; a cinematic black intro with a chrome 3D monogram that opens onto the white page. */
+:root{
+  --bg:#fbfbf9;         /* page ground, soft white */
+  --bg-2:#f2f1ee;       /* panels */
+  --fg:#0e0e0e;         /* ink */
+  --muted:#7a7772;      /* secondary text */
+  --line:#e6e4df;       /* hairlines */
+  --line-2:#c9c6c0;     /* stronger hairline */
+  --night:#070707;      /* intro + manifesto band */
+  --night-fg:#ecebe7;   /* text on night */
+  --night-muted:#8b8984;
+  --danger:#a8463a;     /* form errors only */
+  --display:"Prata","Didot","Bodoni 72","Times New Roman",serif;
+  --ui:"Tenor Sans","Helvetica Neue",Arial,sans-serif;
+  --gutter:clamp(16px,5vw,72px);
+  --max:1320px;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:15px;line-height:1.7;letter-spacing:.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body.locked{overflow:hidden}
+img{max-width:100%;display:block}
+a{color:inherit}
+button{font:inherit;color:inherit}
+[hidden]{display:none!important}
+:focus-visible{outline:1px solid var(--fg);outline-offset:4px}
+.wrap{max-width:var(--max);margin-inline:auto;padding-inline:var(--gutter)}
+.label{font-family:var(--ui);font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--muted)}
+h1,h2,h3{font-family:var(--display);font-weight:400;line-height:1.05;margin:0;text-wrap:balance}
+p{margin:0}
+
+/* ---------- intro ---------- */
+#intro{position:fixed;inset:0;z-index:100;background:var(--night);--r:-240px;
+  -webkit-mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 220px));
+          mask:radial-gradient(circle at 50% 50%,transparent var(--r),#000 calc(var(--r) + 220px))}
+#intro canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#intro .skip{position:absolute;right:var(--gutter);bottom:calc(28px + env(safe-area-inset-bottom,0px));background:none;border:0;border-bottom:1px solid #333;color:var(--night-muted);font-family:var(--ui);font-size:10px;letter-spacing:.32em;text-transform:uppercase;padding:6px 0;cursor:pointer}
+#intro .skip:hover{color:var(--night-fg)}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top .wrap{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:16px;height:76px}
+.top nav{display:flex;gap:34px}
+.top nav a{text-decoration:none;font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);transition:color .3s}
+.top nav a:hover{color:var(--fg)}
+.top .brand{display:flex;justify-content:center}
+.top .brand img{height:26px;width:auto}
+.top .right{display:flex;justify-content:flex-end}
+@media (max-width:760px){.top nav{display:none}.top .wrap{grid-template-columns:auto 1fr;height:64px}.top .brand{justify-content:flex-start}}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:12px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);text-decoration:none;font-family:var(--ui);font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;padding:18px 32px;cursor:pointer;transition:background .35s,color .35s,opacity .3s}
+.btn:hover{background:transparent;color:var(--fg)}
+.btn.ghost{background:transparent;color:var(--fg);border-color:var(--line-2)}
+.btn.ghost:hover{border-color:var(--fg)}
+.btn.sm{padding:11px 18px;font-size:10px}
+.btn[disabled]{opacity:.25;cursor:not-allowed}
+.btn[disabled]:hover{background:var(--fg);color:var(--bg)}
+.link{background:none;border:0;border-bottom:1px solid var(--line-2);padding:0 0 3px;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--fg);text-decoration:none;cursor:pointer}
+.link:hover{border-color:var(--fg)}
+
+/* ---------- hero ---------- */
+.hero{border-bottom:1px solid var(--line)}
+.hero .wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(32px,6vw,96px);align-items:center;padding-block:clamp(40px,6vw,88px)}
+@media (max-width:860px){.hero .wrap{grid-template-columns:1fr}}
+.hero .copy{display:grid;gap:clamp(24px,3vw,36px);align-content:center}
+.wordmark{font-size:clamp(52px,8.4vw,128px);line-height:.92;letter-spacing:.01em;text-transform:uppercase}
+.hero .motto{font-family:var(--display);font-size:clamp(19px,1.8vw,24px)}
+.hero .copy p.lead{max-width:38ch;color:var(--muted)}
+.hero .cta{display:flex;flex-wrap:wrap;gap:24px;align-items:center}
+.hero figure{margin:0;position:relative;background:var(--bg-2);aspect-ratio:4/5;overflow:hidden;max-width:100%}
+.hero figure img{width:100%;height:100%;object-fit:cover}
+.hero figcaption{position:absolute;left:20px;bottom:18px;right:20px;display:flex;justify-content:space-between;gap:12px}
+
+/* ---------- sections ---------- */
+.sec{padding-block:clamp(80px,10vw,144px)}
+.sec-head{display:flex;flex-wrap:wrap;align-items:end;justify-content:space-between;gap:12px 24px;margin-bottom:clamp(36px,5vw,64px);padding-bottom:22px;border-bottom:1px solid var(--line)}
+.sec-head h2{font-size:clamp(34px,4.4vw,58px)}
+
+/* ---------- product ---------- */
+.product{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:clamp(28px,6vw,104px);align-items:start}
+@media (max-width:920px){.product{grid-template-columns:1fr}}
+.gallery{display:grid;gap:10px}
+.stage-img{position:relative;background:var(--bg-2);aspect-ratio:4/5;overflow:hidden;max-width:100%}
+.stage-img img{width:100%;height:100%;object-fit:cover;transition:transform 1.4s cubic-bezier(.2,.7,.2,1),opacity .4s}
+.stage-img:hover img{transform:scale(1.035)}
+.thumbs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.thumbs button{padding:0;border:1px solid transparent;background:var(--bg-2);aspect-ratio:1;overflow:hidden;cursor:pointer;opacity:.5;transition:opacity .3s,border-color .3s}
+.thumbs button[aria-pressed="true"]{opacity:1;border-color:var(--fg)}
+.thumbs button:hover{opacity:1}
+.thumbs img{width:100%;height:100%;object-fit:cover}
+
+.buy{position:sticky;top:110px;display:grid;gap:34px}
+.buy .title{display:grid;gap:16px}
+.buy h3{font-size:clamp(34px,3.4vw,46px)}
+.price{display:flex;align-items:baseline;gap:18px;flex-wrap:wrap}
+.price strong{font-family:var(--display);font-weight:400;font-size:24px}
+.facts{margin:0;padding:0;list-style:none;border-top:1px solid var(--line)}
+.facts li{display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding-block:14px;border-bottom:1px solid var(--line);font-size:14px}
+.facts li span:first-child{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.sizes{display:grid;gap:14px}
+.sizes .row{display:flex;justify-content:space-between;align-items:baseline}
+.size-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.size{border:1px solid var(--line-2);background:transparent;padding:15px 0;cursor:pointer;font-size:13px;letter-spacing:.16em;transition:border-color .25s,background .25s,color .25s}
+.size:hover:not([disabled]){border-color:var(--fg)}
+.size[aria-checked="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.size[disabled]{cursor:not-allowed;color:#bdbab4;border-color:var(--line);background:linear-gradient(to top right,transparent calc(50% - .5px),var(--line-2) 50%,transparent calc(50% + .5px))}
+.chart{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-block:1px solid var(--line);font-size:12px}
+.chart div{padding:12px 6px;display:grid;gap:4px;text-align:center}
+.chart b{font-weight:400;letter-spacing:.14em}
+.chart span{color:var(--muted)}
+.qty{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.stepper{display:inline-flex;border:1px solid var(--line-2)}
+.stepper button{width:44px;height:44px;background:none;border:0;cursor:pointer;font-size:16px;color:var(--muted)}
+.stepper button:hover{color:var(--fg)}
+.stepper output{width:44px;display:grid;place-items:center;font-size:14px}
+.buy .go{width:100%;padding-block:21px}
+.note{font-size:13px;color:var(--muted);line-height:1.65}
+
+/* ---------- manifesto (the one black band) ---------- */
+.manifesto{background:var(--night);color:var(--night-fg)}
+.manifesto .wrap{display:grid;justify-items:center;text-align:center;gap:38px;padding-block:clamp(96px,12vw,168px)}
+.manifesto .label{color:var(--night-muted)}
+.manifesto blockquote{margin:0;font-family:var(--display);font-size:clamp(30px,4.4vw,58px);line-height:1.15;max-width:17ch}
+.manifesto .text{display:grid;gap:18px;max-width:54ch;color:var(--night-muted);font-size:15px}
+.manifesto .sig{display:grid;justify-items:center;gap:16px;margin-top:6px;font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--night-muted)}
+.manifesto .sig img{height:30px;width:auto}
+
+/* ---------- archive ---------- */
+.archive{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(12px,2vw,28px)}
+@media (max-width:640px){.archive{grid-template-columns:1fr}}
+.card{display:grid;gap:18px}
+.card .pic{position:relative;aspect-ratio:4/5;overflow:hidden;background:var(--bg-2);max-width:100%}
+.card .pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.04);transition:opacity .9s,transform 1.4s cubic-bezier(.2,.7,.2,1)}
+.card .pic img.alt{opacity:0}
+.card:hover .pic img.alt{opacity:1}
+.card:hover .pic img{transform:scale(1.03)}
+.card .meta{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap}
+.card h3{font-size:clamp(22px,2.2vw,28px)}
+.card .meta .sold{font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:var(--fg);border-bottom:1px solid var(--fg);padding-bottom:2px}
+
+/* ---------- steps + faq ---------- */
+.how{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));padding:0;margin:0}
+@media (max-width:760px){.how{grid-template-columns:1fr}}
+.how li{list-style:none;padding:6px 32px 32px 0;display:grid;gap:12px;align-content:start}
+@media (min-width:761px){.how li+li{padding-left:32px;border-left:1px solid var(--line)}}
+@media (max-width:760px){.how li{border-bottom:1px solid var(--line);padding-block:24px}}
+.how .n{font-family:var(--display);font-size:34px;line-height:1;color:var(--line-2)}
+.how h3{font-family:var(--ui);font-size:11px;letter-spacing:.28em;text-transform:uppercase}
+.how p{color:var(--muted);font-size:14px}
+.faq{margin-top:72px;display:grid;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;cursor:pointer;padding:22px 0;display:flex;justify-content:space-between;gap:16px;font-family:var(--display);font-size:19px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";color:var(--muted);font-family:var(--ui)}
+.faq details[open] summary::after{content:"−"}
+.faq details p{padding-bottom:22px;color:var(--muted);max-width:62ch}
+
+/* ---------- footer ---------- */
+footer{border-top:1px solid var(--line);padding-block:80px calc(56px + env(safe-area-inset-bottom,0px));text-align:center}
+footer .wrap{display:grid;justify-items:center;gap:28px}
+footer img{height:38px;width:auto}
+footer .motto{font-family:var(--display);font-size:clamp(22px,2.6vw,30px)}
+footer nav{display:flex;flex-wrap:wrap;justify-content:center;gap:30px}
+footer nav a{text-decoration:none;font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+footer nav a:hover{color:var(--fg)}
+footer small{color:var(--line-2);font-size:10px;letter-spacing:.28em;text-transform:uppercase}
+
+/* ---------- mobile buy bar ---------- */
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:15;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding:12px var(--gutter) calc(12px + env(safe-area-inset-bottom,0px));display:none;align-items:center;justify-content:space-between;gap:12px;transform:translateY(110%);transition:transform .35s}
+.bar.show{transform:none}
+.bar div{display:grid;line-height:1.3}
+.bar strong{font-family:var(--display);font-weight:400;font-size:18px}
+@media (max-width:920px){.bar{display:flex}}
+
+/* ---------- checkout ---------- */
+dialog{width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:0;border:0;background:var(--bg);color:var(--fg);overflow:auto;box-shadow:0 30px 80px rgba(0,0,0,.18)}
+dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
+.co{display:grid;gap:26px;padding:34px}
+.co-head{display:flex;justify-content:space-between;align-items:start;gap:16px}
+.co-head h3{font-size:32px}
+.x{background:none;border:1px solid var(--line-2);width:40px;height:40px;cursor:pointer;font-size:14px;flex:none;color:var(--muted)}
+.x:hover{color:var(--fg);border-color:var(--fg)}
+.summary{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:18px;align-items:center;padding-block:16px;border-block:1px solid var(--line)}
+.summary img{width:64px;height:80px;object-fit:cover;background:var(--bg-2)}
+.summary b{display:block;font-family:var(--display);font-weight:400;font-size:17px}
+.summary span{font-size:12px;color:var(--muted);letter-spacing:.06em}
+.summary strong{font-family:var(--display);font-weight:400;font-size:18px}
+.form-step{display:grid;gap:20px}
+.field{display:grid;gap:8px}
+.field label,.field .lab{font-size:10px;letter-spacing:.28em;text-transform:uppercase;color:var(--muted)}
+.field input,.field textarea{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line-2);color:var(--fg);padding:10px 0;font:inherit;font-size:16px;border-radius:0}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--fg)}
+.field.bad input,.field.bad textarea{border-color:var(--danger)}
+.err{font-size:12px;color:var(--danger)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg label{position:relative;border:1px solid var(--line-2);padding:13px 14px;cursor:pointer;display:grid;gap:2px;font-size:14px;letter-spacing:0;text-transform:none;color:var(--fg)}
+.seg label small{color:var(--muted);font-size:12px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:checked){border-color:var(--fg);box-shadow:inset 0 0 0 1px var(--fg)}
+.seg label:has(input:focus-visible){outline:1px solid var(--fg);outline-offset:3px}
+@media (max-width:480px){.seg{grid-template-columns:1fr}}
+.pay{display:none;gap:18px}
+.co.ready .pay{display:grid}
+.co.ready .form-step{display:none}
+.pay .total{display:flex;justify-content:space-between;align-items:baseline}
+.pay .total strong{font-family:var(--display);font-weight:400;font-size:28px}
+.paystep{display:grid;grid-template-columns:28px minmax(0,1fr);gap:14px;align-items:start}
+.paystep i{font-family:var(--display);font-style:normal;font-size:20px;line-height:1.3;color:var(--line-2)}
+.paystep .btn{width:100%}
+.orderid{font-size:10.5px;color:var(--muted);letter-spacing:.24em;text-transform:uppercase}
+.copyrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px;color:var(--muted)}
+.copyrow button{background:none;border:0;border-bottom:1px solid var(--line-2);color:var(--fg);padding:0 0 2px;font-size:12px;cursor:pointer}
+.copyrow code{font-family:var(--ui);color:var(--fg);user-select:all}
+
+.size{display:grid;gap:3px;justify-items:center;padding:12px 0 10px}
+.size small{font-size:10px;letter-spacing:.06em;color:var(--muted)}
+.size[aria-checked="true"] small{color:var(--bg)}
+.size small.low{color:var(--fg)}
+.owner-btn{position:fixed;left:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--fg);color:var(--bg);border:0;padding:10px 14px;font-size:10px;letter-spacing:.28em;text-transform:uppercase;cursor:pointer}
+@media (max-width:920px){.owner-btn{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
+.owner{display:grid;gap:20px;padding:30px}
+.owner .grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.owner .grid label{display:grid;gap:6px;font-size:11px;letter-spacing:.2em;text-align:center}
+.owner .grid input{width:100%;border:1px solid var(--line-2);background:transparent;padding:10px 4px;text-align:center;font:inherit;font-size:16px;color:var(--fg)}
+.owner .msg{font-size:13px;color:var(--muted);min-height:1.4em}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
+</style>
+
+<div id="intro" aria-hidden="true">
+  <canvas id="gl"></canvas>
+  <canvas id="fx" style="z-index:1"></canvas>
+  <button class="skip" type="button">Пропустить</button>
+</div>
+
+<header class="top">
+  <div class="wrap">
+    <nav aria-label="Разделы">
+      <a href="#drop002">Drop 002</a>
+      <a href="#about">О бренде</a>
+      <a href="#archive">Архив</a>
+    </nav>
+    <a class="brand" href="#top" aria-label="NOW THE PRIME, наверх"><img src="img/logo-black.png" alt="" width="1083" height="495"></a>
+    <div class="right"><a class="btn sm" href="#drop002">Купить</a></div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div class="copy">
+        <span class="label">Drop 002 · тираж 25 штук</span>
+        <h1 class="wordmark">Now<br>the Prime</h1>
+        <p class="motto">Your prime time is now.</p>
+        <p class="lead">Для тех, кто не ждёт свой час. Одежда для пути к большим целям — и для того, чтобы этот путь выглядел как победа.</p>
+        <div class="cta">
+          <a class="btn" href="#drop002">Смотреть дроп</a>
+          <a class="link" href="#archive">Архив</a>
+        </div>
+      </div>
+      <figure>
+        <img src="img/tee-front.jpg" alt="Чёрная футболка The path is the prize с белым принтом NOW THE PRIME" width="1096" height="1370">
+        <figcaption><span class="label" style="color:var(--fg)">The path is the prize</span><span class="label" style="color:var(--fg)" id="heroPrice">3 490 ₽</span></figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="drop002" aria-labelledby="d2">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="d2">Drop 002</h2>
+        <span class="label">В продаже</span>
+      </div>
+
+      <div class="product">
+        <div class="gallery">
+          <div class="stage-img">
+            <img id="mainImg" src="img/tee-front.jpg" alt="Чёрная футболка The path is the prize, белый принт NOW THE PRIME на груди" width="1096" height="1370">
+          </div>
+          <div class="thumbs" role="group" aria-label="Фото футболки">
+            <button type="button" aria-pressed="true" data-src="img/tee-front.jpg" data-alt="Чёрная футболка The path is the prize, белый принт NOW THE PRIME на груди"><img src="img/tee-front.jpg" alt="Футболка целиком"></button>
+            <button type="button" aria-pressed="false" data-src="img/tee-detail.jpg" data-alt="Принт крупно: NOW THE PRIME, монограмма NP, Your prime time is now, the path is the prize"><img src="img/tee-detail.jpg" alt="Принт крупно"></button>
+            <button type="button" aria-pressed="false" data-src="img/tee-collar.jpg" data-alt="Ворот и плотный футер крупным планом"><img src="img/tee-collar.jpg" alt="Ворот и ткань"></button>
+          </div>
+        </div>
+
+        <div class="buy">
+          <div class="title">
+            <span class="label">Футболка · Drop 002</span>
+            <h3>The path is the prize</h3>
+            <div class="price"><strong id="priceTag">3 490 ₽</strong><span class="label" id="leftTag">Тираж 25 шт.</span></div>
+          </div>
+
+          <ul class="facts">
+            <li><span>Ткань</span><span>Футер 3-х нитка, 240 г/м²</span></li>
+            <li><span>Крой</span><span>Оверсайз</span></li>
+            <li><span>Цвет</span><span>Чёрный, белый принт</span></li>
+                      </ul>
+
+          <div class="sizes">
+            <div class="row"><span class="label">Размер</span><button type="button" class="link" id="chartToggle" aria-expanded="false" aria-controls="chart">Размерная сетка</button></div>
+            <div class="size-grid" role="radiogroup" aria-label="Размер" id="sizeGrid"></div>
+            <div class="chart" id="chart" hidden></div>
+            <p class="note">Посадка оверсайз, сетка по росту. Сомневаешься в размере — напиши, подскажем.</p>
+          </div>
+
+          <div class="qty">
+            <span class="label">Количество</span>
+            <div class="stepper">
+              <button type="button" id="qMinus" aria-label="Меньше">−</button>
+              <output id="qty" aria-live="polite">1</output>
+              <button type="button" id="qPlus" aria-label="Больше">+</button>
+            </div>
+          </div>
+
+          <button class="btn go" type="button" id="buyBtn" disabled>Выбери размер</button>
+          <p class="note">Оплата по СБП. После оплаты отправь заказ и чек в Telegram — подтвердим и договоримся о доставке.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="manifesto" id="about" aria-labelledby="ab">
+    <div class="wrap">
+      <span class="label">О бренде</span>
+      <blockquote id="ab">Твой час — сейчас. Путь и есть награда.</blockquote>
+      <div class="text">
+        <p>NOW THE PRIME — для тех, кто не ждёт свой час. Кто готов выкладываться изо всех сил ради огромных целей и хочет, чтобы и он, и его путь выглядели как победа, даже пока он ещё идёт.</p>
+        <p>Бренд вырос из танцев: из тренировок до ночи и выходов на сцену, как в последний раз. Каждый дроп — эксклюзив, небольшой тираж для своих.</p>
+      </div>
+      <div class="sig"><img src="img/logo.png" alt="" width="1083" height="495"><a href="https://instagram.com/nik_tik_pik" style="text-decoration:none;color:inherit">made by @nik_tik_pik</a></div>
+    </div>
+  </section>
+
+  <section class="sec" id="archive" aria-labelledby="d1">
+    <div class="wrap">
+      <div class="sec-head">
+        <h2 id="d1">Drop 001</h2>
+        <span class="label">Dreams and Aspiration · распродан</span>
+      </div>
+      <div class="archive">
+        <article class="card">
+          <div class="pic">
+            <img src="img/zip-front.jpg" alt="Чёрное зип-худи NOW THE PRIME с вышитой монограммой NP">
+            <img class="alt" src="img/zip-back.jpg" alt="Спина зип-худи: принт Dreams and Aspiration, NOW THE PRIME">
+          </div>
+          <div class="meta"><h3>Зип-худи</h3><span class="sold">Sold out</span></div>
+        </article>
+        <article class="card">
+          <div class="pic">
+            <img src="img/pants-side.jpg" alt="Чёрные широкие штаны с вышивкой Dreams and Aspiration">
+            <img class="alt" src="img/pants-bw.jpg" alt="Штаны NOW THE PRIME, чёрно-белый кадр">
+          </div>
+          <div class="meta"><h3>Штаны</h3><span class="sold">Sold out</span></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="how" aria-labelledby="hw" style="padding-top:0">
+    <div class="wrap">
+      <div class="sec-head"><h2 id="hw">Как купить</h2><span class="label">Три шага</span></div>
+      <ol class="how">
+        <li><span class="n">I</span><h3>Выбери размер</h3><p>Сетка по росту: S до 150 см, M 150–165, L 165–175, XL 175–185.</p></li>
+        <li><span class="n">II</span><h3>Оплати по СБП</h3><p>Укажи имя, контакт и адрес, нажми «Оплатить по СБП» и подтверди платёж в приложении банка.</p></li>
+        <li><span class="n">III</span><h3>Отправь заказ</h3><p>Сообщение с заказом уже готово. Прикрепи чек и отправь его в Telegram — мы подтвердим заказ и доставку.</p></li>
+      </ol>
+      <div class="faq">
+        <details><summary>Как выбрать размер?</summary><p>Ориентируйся на рост: S — до 150 см, M — 150–165, L — 165–175, XL — 175–185. Футболка оверсайз. Если сомневаешься, напиши нам перед покупкой.</p></details>
+        <details><summary>Из чего сделана футболка?</summary><p>Футер 3-х нитка плотностью 240 г/м². Плотная ткань хорошо держит оверсайз-силуэт.</p></details>
+        <details><summary>Как получить заказ?</summary><p>Доставка по Москве или по России. Адрес указываешь при оформлении, сроки и стоимость доставки обсудим в Telegram после оплаты.</p></details>
+        <details><summary>Сколько всего футболок?</summary><p>Каждый дроп — эксклюзив. Drop 002 вышел тиражом 25 штук, остаток по каждому размеру виден при выборе.</p></details>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <img src="img/logo-black.png" alt="NOW THE PRIME" width="1083" height="495">
+    <p class="motto">The path is the prize.</p>
+    <nav aria-label="Контакты">
+      <a id="igLink" href="https://instagram.com/nowtheprime">Instagram</a>
+      <a id="tgLink" href="https://t.me/nik_tik_pik">Telegram</a>
+    </nav>
+    <small>© 2026 Now the Prime · Москва</small>
+  </div>
+</footer>
+
+<div class="bar" id="bar">
+  <div><span class="label">Drop 002</span><strong id="barPrice">3 490 ₽</strong></div>
+  <a class="btn sm" href="#drop002">Выбрать размер</a>
+</div>
+
+<dialog id="checkout" aria-labelledby="coTitle">
+  <form class="co" id="coForm" novalidate>
+    <div class="co-head">
+      <div style="display:grid;gap:10px"><span class="label" id="coStep">Шаг 1 из 2 · Данные</span><h3 id="coTitle">Оформление</h3></div>
+      <button class="x" type="button" id="coClose" aria-label="Закрыть">✕</button>
+    </div>
+    <div class="summary">
+      <img src="img/tee-front.jpg" alt="">
+      <div><b>The path is the prize</b><span id="sumLine">Размер M · 1 шт.</span></div>
+      <strong id="sumTotal">3 490 ₽</strong>
+    </div>
+
+    <div class="form-step">
+      <div class="field" id="fName"><label for="name">Имя</label><input id="name" name="name" autocomplete="name" placeholder="Как к тебе обращаться"><span class="err" hidden>Напиши имя</span></div>
+      <div class="field" id="fContact"><label for="contact">Telegram или телефон</label><input id="contact" name="contact" autocomplete="tel" placeholder="@username или +7 900 000-00-00"><span class="err" hidden>Нужен контакт, чтобы подтвердить заказ</span></div>
+      <div class="field"><span class="lab">Доставка</span>
+        <div class="seg">
+          <label><input type="radio" name="ship" id="shipMsk" value="msk" checked>По Москве<small>курьером</small></label>
+          <label><input type="radio" name="ship" id="shipRu" value="ru">По России<small>в пункт выдачи или курьером</small></label>
+        </div>
+      </div>
+      <div class="field" id="fAddr"><label for="addr">Адрес доставки</label><textarea id="addr" name="addr" rows="2" placeholder="Улица, дом, квартира"></textarea><span class="err" hidden>Укажи, куда отправить</span></div>
+      <button class="btn go" type="submit" style="width:100%;padding-block:19px">Перейти к оплате</button>
+    </div>
+
+    <div class="pay">
+      <div class="total"><span class="label">К оплате</span><strong id="payTotal">3 490 ₽</strong></div>
+      <p class="orderid">Заказ <span id="orderId">NTP-002-0000</span></p>
+      <div class="paystep"><i>I</i><div style="display:grid;gap:10px">
+        <a class="btn" id="sbpBtn" href="#" target="_blank" rel="noopener">Оплатить по СБП</a>
+        <p class="note" id="sbpNote">Откроется оплата в приложении банка.</p>
+      </div></div>
+      <div class="paystep"><i>II</i><div style="display:grid;gap:10px">
+        <a class="btn ghost" id="tgBtn" href="#" target="_blank" rel="noopener">Отправить заказ и чек в Telegram</a>
+        <div class="copyrow"><span>Если Telegram не открылся, скопируй текст заказа и отправь его <code id="tgHandle">@nik_tik_pik</code> вместе с чеком.</span><button type="button" id="copyOrder">Скопировать текст заказа</button><span id="copied" aria-live="polite"></span></div>
+      </div></div>
+      <button type="button" class="link" id="backBtn" style="justify-self:start">Изменить данные</button>
+    </div>
+  </form>
+</dialog>
+
+<button class="owner-btn" id="ownerBtn" type="button" hidden>Остатки</button>
+<dialog id="ownerDlg" aria-labelledby="ownTitle">
+  <div class="owner">
+    <div class="co-head"><div style="display:grid;gap:10px"><span class="label">Видно только тебе</span><h3 id="ownTitle" style="font-size:28px">Остатки по размерам</h3></div><button class="x" type="button" id="ownClose" aria-label="Закрыть">✕</button></div>
+    <p class="note">Когда подтверждаешь заказ, уменьши число здесь и сохрани — сайт обновится у всех покупателей.</p>
+    <div class="grid" id="ownGrid"></div>
+    <button class="btn" type="button" id="ownSave">Сохранить остатки</button>
+    <p class="msg" id="ownMsg" aria-live="polite"></p>
+  </div>
+</dialog>
+
+<script id="ntp-stock" type="application/json">{"S":4,"M":10,"L":7,"XL":4,"XXL":0}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+/* ======== НАСТРОЙКИ: меняй здесь ======== */
+const CONFIG = {
+  product: "The path is the prize",
+  price: 3490,                 // цена, ₽
+  sbpLink: "",                 // ссылка на оплату по СБП из банка
+  telegram: "nik_tik_pik",     // куда присылать заказы и чеки (без @)
+  instagram: "nowtheprime",
+  maxQty: 3,
+  total: 25,                   // тираж
+  sizes: [                     // остатки — в блоке ntp-stock (кнопка «Остатки» на сайте)
+    {id:"S",  height:"до 150 см"},
+    {id:"M",  height:"150–165 см"},
+    {id:"L",  height:"165–175 см"},
+    {id:"XL", height:"175–185 см"},
+    {id:"XXL",height:"185–195 см"}
+  ]
+};
+/* ======================================== */
+let STOCK = {}; try { STOCK = JSON.parse(document.getElementById("ntp-stock").textContent); } catch(e) {}
+const left = id => Math.max(0, Number(STOCK[id]) || 0);
+const SRC = null;
+const LOGO_SHAPE = [{"o":[[-1.501,2.229],[-1.522,2.228],[-1.543,2.226],[-1.565,2.226],[-1.586,2.226],[-1.607,2.225],[-1.628,2.224],[-1.649,2.224],[-1.67,2.223],[-1.692,2.222],[-1.713,2.221],[-1.734,2.221],[-1.755,2.221],[-1.776,2.219],[-1.797,2.216],[-1.818,2.211],[-1.834,2.198],[-1.851,2.185],[-1.871,2.178],[-1.892,2.173],[-1.912,2.169],[-1.933,2.167],[-1.954,2.164],[-1.975,2.161],[-1.996,2.158],[-2.017,2.155],[-2.038,2.152],[-2.059,2.148],[-2.08,2.144],[-2.101,2.14],[-2.121,2.135],[-2.142,2.131],[-2.163,2.128],[-2.184,2.124],[-2.205,2.12],[-2.225,2.114],[-2.245,2.108],[-2.266,2.102],[-2.286,2.096],[-2.306,2.09],[-2.327,2.085],[-2.347,2.08],[-2.368,2.074],[-2.388,2.067],[-2.408,2.061],[-2.428,2.054],[-2.448,2.047],[-2.468,2.041],[-2.488,2.034],[-2.508,2.026],[-2.528,2.019],[-2.548,2.011],[-2.567,2.004],[-2.587,1.996],[-2.607,1.987],[-2.626,1.979],[-2.646,1.971],[-2.665,1.963],[-2.685,1.955],[-2.705,1.947],[-2.724,1.939],[-2.744,1.931],[-2.763,1.922],[-2.782,1.913],[-2.801,1.903],[-2.819,1.893],[-2.838,1.883],[-2.856,1.872],[-2.875,1.862],[-2.893,1.852],[-2.912,1.841],[-2.93,1.83],[-2.948,1.82],[-2.967,1.809],[-2.985,1.799],[-3.004,1.789],[-3.022,1.778],[-3.041,1.768],[-3.059,1.757],[-3.077,1.746],[-3.095,1.735],[-3.113,1.724],[-3.131,1.713],[-3.149,1.701],[-3.166,1.689],[-3.184,1.677],[-3.201,1.665],[-3.219,1.654],[-3.237,1.642],[-3.254,1.629],[-3.271,1.617],[-3.288,1.604],[-3.305,1.592],[-3.322,1.579],[-3.338,1.566],[-3.355,1.552],[-3.371,1.539],[-3.388,1.526],[-3.405,1.513],[-3.421,1.5],[-3.437,1.486],[-3.453,1.471],[-3.468,1.457],[-3.484,1.442],[-3.499,1.428],[-3.515,1.414],[-3.531,1.4],[-3.546,1.385],[-3.561,1.37],[-3.576,1.355],[-3.591,1.34],[-3.606,1.325],[-3.62,1.309],[-3.634,1.293],[-3.648,1.277],[-3.661,1.261],[-3.673,1.244],[-3.685,1.226],[-3.697,1.209],[-3.71,1.192],[-3.723,1.175],[-3.736,1.158],[-3.748,1.141],[-3.759,1.123],[-3.768,1.104],[-3.777,1.085],[-3.787,1.066],[-3.797,1.047],[-3.806,1.028],[-3.816,1.009],[-3.825,0.99],[-3.833,0.971],[-3.842,0.951],[-3.851,0.932],[-3.859,0.913],[-3.868,0.893],[-3.876,0.874],[-3.884,0.854],[-3.891,0.834],[-3.896,0.813],[-3.899,0.793],[-3.901,0.771],[-3.901,0.75],[-3.901,0.729],[-3.901,0.708],[-3.902,0.687],[-3.903,0.666],[-3.904,0.644],[-3.902,0.623],[-3.897,0.603],[-3.89,0.583],[-3.883,0.563],[-3.875,0.543],[-3.867,0.523],[-3.858,0.504],[-3.847,0.486],[-3.834,0.47],[-3.821,0.453],[-3.808,0.436],[-3.795,0.42],[-3.781,0.403],[-3.767,0.387],[-3.753,0.372],[-3.738,0.357],[-3.722,0.343],[-3.706,0.329],[-3.69,0.315],[-3.673,0.302],[-3.656,0.29],[-3.638,0.278],[-3.62,0.267],[-3.602,0.257],[-3.583,0.247],[-3.564,0.238],[-3.544,0.23],[-3.524,0.223],[-3.504,0.216],[-3.484,0.21],[-3.464,0.203],[-3.444,0.196],[-3.423,0.192],[-3.402,0.189],[-3.381,0.187],[-3.36,0.184],[-3.339,0.18],[-3.318,0.177],[-3.297,0.173],[-3.276,0.17],[-3.255,0.168],[-3.234,0.167],[-3.213,0.166],[-3.192,0.165],[-3.171,0.165],[-3.15,0.165],[-3.128,0.165],[-3.107,0.165],[-3.086,0.166],[-3.065,0.167],[-3.044,0.168],[-3.023,0.17],[-3.001,0.171],[-2.98,0.173],[-2.959,0.176],[-2.938,0.178],[-2.917,0.182],[-2.897,0.185],[-2.876,0.189],[-2.855,0.193],[-2.834,0.197],[-2.813,0.201],[-2.792,0.205],[-2.772,0.208],[-2.751,0.213],[-2.73,0.218],[-2.71,0.224],[-2.69,0.23],[-2.669,0.236],[-2.649,0.241],[-2.629,0.247],[-2.608,0.254],[-2.588,0.26],[-2.568,0.267],[-2.548,0.275],[-2.529,0.282],[-2.509,0.29],[-2.489,0.297],[-2.469,0.305],[-2.45,0.313],[-2.43,0.321],[-2.41,0.329],[-2.391,0.337],[-2.371,0.345],[-2.352,0.354],[-2.333,0.362],[-2.313,0.371],[-2.294,0.38],[-2.275,0.39],[-2.257,0.4],[-2.239,0.411],[-2.221,0.423],[-2.203,0.434],[-2.185,0.445],[-2.167,0.455],[-2.148,0.466],[-2.13,0.477],[-2.112,0.487],[-2.093,0.498],[-2.075,0.509],[-2.057,0.52],[-2.039,0.532],[-2.022,0.543],[-2.004,0.556],[-1.987,0.568],[-1.97,0.581],[-1.954,0.594],[-1.937,0.607],[-1.921,0.621],[-1.906,0.635],[-1.889,0.648],[-1.871,0.66],[-1.855,0.674],[-1.847,0.693],[-1.848,0.714],[-1.853,0.735],[-1.861,0.754],[-1.876,0.769],[-1.894,0.78],[-1.915,0.786],[-1.935,0.791],[-1.956,0.794],[-1.977,0.795],[-1.998,0.793],[-2.018,0.787],[-2.037,0.777],[-2.055,0.766],[-2.073,0.754],[-2.09,0.742],[-2.107,0.729],[-2.124,0.716],[-2.141,0.704],[-2.158,0.691],[-2.176,0.679],[-2.193,0.667],[-2.21,0.655],[-2.228,0.643],[-2.245,0.631],[-2.262,0.619],[-2.28,0.607],[-2.299,0.597],[-2.317,0.587],[-2.336,0.577],[-2.355,0.568],[-2.374,0.558],[-2.393,0.549],[-2.413,0.54],[-2.432,0.532],[-2.452,0.524],[-2.471,0.516],[-2.491,0.508],[-2.51,0.499],[-2.53,0.491],[-2.55,0.484],[-2.569,0.476],[-2.589,0.469],[-2.609,0.462],[-2.629,0.455],[-2.65,0.449],[-2.67,0.443],[-2.69,0.436],[-2.71,0.43],[-2.731,0.424],[-2.751,0.419],[-2.772,0.413],[-2.792,0.408],[-2.813,0.403],[-2.833,0.399],[-2.854,0.394],[-2.875,0.389],[-2.895,0.385],[-2.916,0.381],[-2.937,0.378],[-2.958,0.375],[-2.979,0.373],[-3.0,0.371],[-3.021,0.369],[-3.043,0.368],[-3.064,0.367],[-3.085,0.367],[-3.106,0.367],[-3.127,0.367],[-3.148,0.367],[-3.17,0.368],[-3.191,0.37],[-3.212,0.372],[-3.233,0.376],[-3.253,0.379],[-3.274,0.384],[-3.295,0.388],[-3.315,0.393],[-3.336,0.399],[-3.356,0.406],[-3.376,0.413],[-3.395,0.421],[-3.415,0.43],[-3.433,0.44],[-3.452,0.451],[-3.469,0.462],[-3.487,0.474],[-3.504,0.487],[-3.52,0.501],[-3.536,0.515],[-3.55,0.53],[-3.564,0.546],[-3.576,0.564],[-3.586,0.582],[-3.594,0.602],[-3.602,0.622],[-3.609,0.642],[-3.616,0.662],[-3.621,0.682],[-3.623,0.703],[-3.624,0.725],[-3.624,0.746],[-3.622,0.767],[-3.618,0.788],[-3.613,0.808],[-3.608,0.829],[-3.604,0.85],[-3.6,0.87],[-3.596,0.891],[-3.592,0.912],[-3.586,0.932],[-3.577,0.952],[-3.567,0.97],[-3.556,0.988],[-3.545,1.006],[-3.533,1.024],[-3.523,1.042],[-3.513,1.061],[-3.502,1.079],[-3.492,1.098],[-3.481,1.116],[-3.47,1.134],[-3.459,1.152],[-3.447,1.17],[-3.434,1.187],[-3.421,1.203],[-3.407,1.219],[-3.393,1.235],[-3.379,1.251],[-3.364,1.266],[-3.35,1.282],[-3.335,1.297],[-3.321,1.312],[-3.305,1.327],[-3.29,1.341],[-3.274,1.355],[-3.258,1.369],[-3.241,1.382],[-3.225,1.396],[-3.209,1.41],[-3.193,1.424],[-3.177,1.437],[-3.16,1.45],[-3.143,1.463],[-3.125,1.475],[-3.108,1.487],[-3.091,1.499],[-3.073,1.511],[-3.056,1.524],[-3.039,1.536],[-3.022,1.548],[-3.004,1.56],[-2.986,1.571],[-2.968,1.582],[-2.95,1.594],[-2.933,1.605],[-2.915,1.617],[-2.897,1.629],[-2.879,1.64],[-2.861,1.651],[-2.843,1.662],[-2.825,1.673],[-2.806,1.683],[-2.788,1.693],[-2.769,1.703],[-2.75,1.712],[-2.73,1.72],[-2.71,1.728],[-2.691,1.736],[-2.672,1.745],[-2.653,1.754],[-2.634,1.764],[-2.615,1.774],[-2.597,1.785],[-2.578,1.794],[-2.559,1.802],[-2.539,1.81],[-2.519,1.818],[-2.499,1.826],[-2.48,1.834],[-2.46,1.842],[-2.441,1.85],[-2.421,1.857],[-2.401,1.864],[-2.381,1.871],[-2.361,1.878],[-2.341,1.885],[-2.321,1.892],[-2.301,1.899],[-2.281,1.905],[-2.26,1.912],[-2.24,1.917],[-2.22,1.923],[-2.199,1.93],[-2.179,1.936],[-2.159,1.942],[-2.138,1.947],[-2.118,1.953],[-2.097,1.957],[-2.076,1.961],[-2.055,1.964],[-2.035,1.968],[-2.014,1.971],[-1.993,1.975],[-1.972,1.979],[-1.951,1.983],[-1.93,1.987],[-1.91,1.991],[-1.889,1.994],[-1.868,1.997],[-1.847,2.0],[-1.826,2.002],[-1.805,2.005],[-1.784,2.007],[-1.762,2.009],[-1.741,2.011],[-1.72,2.013],[-1.699,2.014],[-1.678,2.015],[-1.657,2.016],[-1.636,2.016],[-1.614,2.016],[-1.593,2.016],[-1.572,2.016],[-1.551,2.016],[-1.53,2.016],[-1.509,2.016],[-1.487,2.014],[-1.467,2.011],[-1.446,2.006],[-1.425,2.001],[-1.405,1.996],[-1.384,1.991],[-1.364,1.984],[-1.344,1.978],[-1.324,1.969],[-1.306,1.959],[-1.288,1.948],[-1.271,1.935],[-1.255,1.921],[-1.242,1.905],[-1.231,1.886],[-1.227,1.866],[-1.229,1.845],[-1.236,1.825],[-1.245,1.805],[-1.255,1.787],[-1.266,1.768],[-1.277,1.75],[-1.288,1.733],[-1.3,1.715],[-1.313,1.698],[-1.326,1.681],[-1.339,1.665],[-1.352,1.648],[-1.365,1.631],[-1.378,1.614],[-1.391,1.598],[-1.404,1.581],[-1.416,1.564],[-1.429,1.547],[-1.441,1.53],[-1.454,1.513],[-1.466,1.496],[-1.479,1.479],[-1.492,1.462],[-1.505,1.445],[-1.518,1.429],[-1.53,1.411],[-1.542,1.393],[-1.553,1.375],[-1.564,1.358],[-1.575,1.339],[-1.585,1.321],[-1.594,1.302],[-1.603,1.282],[-1.612,1.263],[-1.619,1.243],[-1.624,1.222],[-1.627,1.201],[-1.628,1.18],[-1.627,1.159],[-1.623,1.138],[-1.619,1.117],[-1.615,1.097],[-1.608,1.077],[-1.598,1.058],[-1.585,1.041],[-1.571,1.026],[-1.555,1.012],[-1.539,0.998],[-1.522,0.985],[-1.506,0.972],[-1.488,0.959],[-1.471,0.948],[-1.452,0.937],[-1.434,0.926],[-1.416,0.915],[-1.397,0.905],[-1.378,0.897],[-1.358,0.889],[-1.338,0.883],[-1.318,0.877],[-1.297,0.873],[-1.276,0.869],[-1.255,0.866],[-1.234,0.864],[-1.213,0.862],[-1.192,0.861],[-1.171,0.86],[-1.149,0.859],[-1.128,0.86],[-1.107,0.861],[-1.086,0.863],[-1.065,0.865],[-1.044,0.868],[-1.023,0.872],[-1.002,0.876],[-0.982,0.88],[-0.961,0.884],[-0.94,0.889],[-0.92,0.895],[-0.9,0.902],[-0.881,0.911],[-0.862,0.92],[-0.842,0.929],[-0.823,0.937],[-0.802,0.943],[-0.782,0.946],[-0.763,0.938],[-0.763,0.917],[-0.775,0.9],[-0.79,0.885],[-0.806,0.871],[-0.821,0.856],[-0.836,0.842],[-0.851,0.827],[-0.866,0.811],[-0.881,0.796],[-0.895,0.78],[-0.909,0.764],[-0.923,0.749],[-0.937,0.733],[-0.952,0.718],[-0.966,0.702],[-0.981,0.687],[-0.996,0.672],[-1.012,0.658],[-1.027,0.643],[-1.042,0.628],[-1.057,0.613],[-1.072,0.598],[-1.087,0.583],[-1.102,0.568],[-1.116,0.553],[-1.131,0.537],[-1.145,0.522],[-1.159,0.506],[-1.174,0.49],[-1.188,0.475],[-1.203,0.459],[-1.217,0.444],[-1.232,0.429],[-1.247,0.414],[-1.262,0.399],[-1.277,0.384],[-1.292,0.369],[-1.306,0.354],[-1.321,0.338],[-1.335,0.323],[-1.35,0.307],[-1.364,0.292],[-1.379,0.276],[-1.393,0.261],[-1.408,0.245],[-1.422,0.23],[-1.437,0.215],[-1.452,0.2],[-1.467,0.185],[-1.482,0.17],[-1.498,0.156],[-1.514,0.142],[-1.53,0.128],[-1.546,0.114],[-1.562,0.1],[-1.577,0.086],[-1.593,0.071],[-1.608,0.057],[-1.624,0.042],[-1.639,0.028],[-1.654,0.013],[-1.67,-0.002],[-1.685,-0.016],[-1.7,-0.031],[-1.715,-0.046],[-1.73,-0.061],[-1.745,-0.076],[-1.76,-0.091],[-1.776,-0.105],[-1.792,-0.119],[-1.808,-0.132],[-1.824,-0.146],[-1.84,-0.16],[-1.856,-0.174],[-1.873,-0.188],[-1.889,-0.201],[-1.905,-0.215],[-1.921,-0.228],[-1.938,-0.242],[-1.954,-0.256],[-1.97,-0.269],[-1.986,-0.283],[-2.002,-0.297],[-2.019,-0.31],[-2.035,-0.324],[-2.052,-0.337],[-2.068,-0.35],[-2.085,-0.363],[-2.102,-0.376],[-2.119,-0.388],[-2.135,-0.402],[-2.152,-0.415],[-2.169,-0.428],[-2.185,-0.441],[-2.202,-0.454],[-2.219,-0.467],[-2.235,-0.481],[-2.251,-0.494],[-2.267,-0.508],[-2.283,-0.522],[-2.3,-0.534],[-2.318,-0.546],[-2.336,-0.557],[-2.354,-0.568],[-2.372,-0.58],[-2.39,-0.591],[-2.408,-0.602],[-2.426,-0.613],[-2.443,-0.625],[-2.46,-0.638],[-2.477,-0.651],[-2.494,-0.664],[-2.511,-0.676],[-2.529,-0.688],[-2.546,-0.7],[-2.564,-0.711],[-2.582,-0.722],[-2.601,-0.732],[-2.619,-0.742],[-2.639,-0.751],[-2.658,-0.76],[-2.677,-0.77],[-2.695,-0.78],[-2.714,-0.79],[-2.732,-0.801],[-2.75,-0.812],[-2.768,-0.823],[-2.786,-0.834],[-2.804,-0.846],[-2.822,-0.857],[-2.841,-0.867],[-2.859,-0.877],[-2.878,-0.887],[-2.897,-0.897],[-2.916,-0.905],[-2.936,-0.914],[-2.955,-0.922],[-2.975,-0.93],[-2.994,-0.938],[-3.014,-0.945],[-3.034,-0.953],[-3.053,-0.962],[-3.073,-0.97],[-3.092,-0.978],[-3.112,-0.986],[-3.132,-0.993],[-3.152,-0.999],[-3.172,-1.006],[-3.192,-1.013],[-3.212,-1.02],[-3.232,-1.026],[-3.253,-1.033],[-3.273,-1.038],[-3.294,-1.043],[-3.315,-1.047],[-3.335,-1.052],[-3.355,-1.058],[-3.376,-1.064],[-3.396,-1.07],[-3.417,-1.074],[-3.438,-1.077],[-3.459,-1.081],[-3.479,-1.086],[-3.499,-1.092],[-3.52,-1.098],[-3.541,-1.102],[-3.562,-1.105],[-3.583,-1.107],[-3.604,-1.108],[-3.625,-1.11],[-3.646,-1.113],[-3.667,-1.117],[-3.687,-1.121],[-3.709,-1.123],[-3.73,-1.125],[-3.751,-1.128],[-3.772,-1.129],[-3.793,-1.131],[-3.814,-1.133],[-3.835,-1.135],[-3.856,-1.136],[-3.877,-1.136],[-3.899,-1.136],[-3.92,-1.137],[-3.941,-1.138],[-3.962,-1.139],[-3.983,-1.139],[-4.004,-1.139],[-4.026,-1.138],[-4.047,-1.137],[-4.068,-1.136],[-4.089,-1.136],[-4.11,-1.136],[-4.131,-1.135],[-4.153,-1.133],[-4.174,-1.131],[-4.195,-1.129],[-4.216,-1.126],[-4.237,-1.123],[-4.258,-1.12],[-4.278,-1.117],[-4.299,-1.113],[-4.32,-1.109],[-4.341,-1.104],[-4.361,-1.097],[-4.381,-1.09],[-4.401,-1.083],[-4.421,-1.078],[-4.442,-1.072],[-4.462,-1.065],[-4.481,-1.057],[-4.5,-1.048],[-4.52,-1.039],[-4.539,-1.03],[-4.557,-1.02],[-4.575,-1.009],[-4.593,-0.997],[-4.61,-0.984],[-4.626,-0.97],[-4.641,-0.955],[-4.652,-0.937],[-4.652,-0.916],[-4.638,-0.901],[-4.618,-0.895],[-4.597,-0.897],[-4.576,-0.9],[-4.555,-0.903],[-4.534,-0.903],[-4.513,-0.901],[-4.492,-0.896],[-4.472,-0.89],[-4.451,-0.884],[-4.431,-0.878],[-4.411,-0.871],[-4.391,-0.864],[-4.372,-0.854],[-4.354,-0.843],[-4.336,-0.832],[-4.319,-0.82],[-4.303,-0.806],[-4.288,-0.791],[-4.273,-0.776],[-4.259,-0.76],[-4.245,-0.744],[-4.231,-0.728],[-4.218,-0.711],[-4.206,-0.694],[-4.194,-0.677],[-4.183,-0.659],[-4.173,-0.64],[-4.167,-0.62],[-4.164,-0.599],[-4.168,-0.578],[-4.176,-0.558],[-4.186,-0.539],[-4.195,-0.52],[-4.205,-0.502],[-4.218,-0.485],[-4.234,-0.472],[-4.252,-0.46],[-4.271,-0.45],[-4.29,-0.441],[-4.309,-0.432],[-4.329,-0.425],[-4.35,-0.42],[-4.371,-0.416],[-4.392,-0.415],[-4.413,-0.414],[-4.434,-0.414],[-4.455,-0.414],[-4.476,-0.414],[-4.498,-0.415],[-4.519,-0.417],[-4.54,-0.419],[-4.561,-0.422],[-4.581,-0.427],[-4.602,-0.432],[-4.622,-0.438],[-4.642,-0.445],[-4.662,-0.453],[-4.681,-0.461],[-4.7,-0.47],[-4.719,-0.48],[-4.738,-0.49],[-4.756,-0.501],[-4.774,-0.513],[-4.791,-0.525],[-4.807,-0.539],[-4.823,-0.552],[-4.839,-0.567],[-4.854,-0.581],[-4.869,-0.596],[-4.884,-0.611],[-4.899,-0.627],[-4.912,-0.643],[-4.923,-0.661],[-4.934,-0.68],[-4.944,-0.698],[-4.956,-0.716],[-4.967,-0.733],[-4.979,-0.751],[-4.989,-0.77],[-4.995,-0.79],[-4.998,-0.811],[-5.0,-0.832],[-4.999,-0.853],[-4.997,-0.874],[-4.995,-0.895],[-4.995,-0.917],[-4.993,-0.938],[-4.99,-0.959],[-4.982,-0.978],[-4.971,-0.997],[-4.958,-1.013],[-4.944,-1.029],[-4.93,-1.044],[-4.915,-1.059],[-4.9,-1.075],[-4.885,-1.09],[-4.87,-1.104],[-4.854,-1.119],[-4.839,-1.133],[-4.823,-1.147],[-4.807,-1.161],[-4.791,-1.175],[-4.774,-1.188],[-4.757,-1.2],[-4.739,-1.212],[-4.721,-1.223],[-4.702,-1.233],[-4.683,-1.242],[-4.664,-1.252],[-4.646,-1.261],[-4.627,-1.271],[-4.607,-1.279],[-4.587,-1.287],[-4.568,-1.294],[-4.547,-1.3],[-4.527,-1.306],[-4.507,-1.312],[-4.486,-1.318],[-4.466,-1.324],[-4.445,-1.329],[-4.424,-1.332],[-4.403,-1.334],[-4.382,-1.335],[-4.361,-1.338],[-4.34,-1.342],[-4.32,-1.349],[-4.3,-1.355],[-4.279,-1.359],[-4.258,-1.362],[-4.237,-1.363],[-4.216,-1.364],[-4.195,-1.365],[-4.174,-1.365],[-4.152,-1.367],[-4.131,-1.369],[-4.11,-1.369],[-4.089,-1.369],[-4.068,-1.367],[-4.047,-1.367],[-4.025,-1.367],[-4.004,-1.367],[-3.983,-1.366],[-3.962,-1.365],[-3.941,-1.365],[-3.92,-1.364],[-3.898,-1.363],[-3.877,-1.362],[-3.856,-1.362],[-3.835,-1.362],[-3.814,-1.362],[-3.793,-1.361],[-3.771,-1.36],[-3.75,-1.359],[-3.729,-1.357],[-3.708,-1.354],[-3.687,-1.35],[-3.667,-1.346],[-3.646,-1.342],[-3.625,-1.338],[-3.604,-1.334],[-3.583,-1.331],[-3.562,-1.329],[-3.541,-1.326],[-3.52,-1.322],[-3.5,-1.318],[-3.479,-1.314],[-3.458,-1.311],[-3.437,-1.308],[-3.416,-1.305],[-3.395,-1.301],[-3.374,-1.298],[-3.353,-1.294],[-3.333,-1.288],[-3.313,-1.282],[-3.292,-1.277],[-3.272,-1.272],[-3.251,-1.267],[-3.231,-1.261],[-3.21,-1.255],[-3.19,-1.248],[-3.17,-1.241],[-3.15,-1.235],[-3.13,-1.229],[-3.109,-1.223],[-3.089,-1.216],[-3.07,-1.209],[-3.05,-1.2],[-3.031,-1.192],[-3.011,-1.185],[-2.99,-1.179],[-2.971,-1.171],[-2.951,-1.163],[-2.931,-1.156],[-2.911,-1.149],[-2.891,-1.141],[-2.872,-1.133],[-2.852,-1.125],[-2.833,-1.117],[-2.813,-1.108],[-2.794,-1.1],[-2.774,-1.092],[-2.755,-1.083],[-2.736,-1.075],[-2.716,-1.066],[-2.697,-1.057],[-2.678,-1.049],[-2.658,-1.04],[-2.639,-1.031],[-2.62,-1.022],[-2.601,-1.013],[-2.582,-1.004],[-2.563,-0.994],[-2.544,-0.985],[-2.525,-0.976],[-2.506,-0.966],[-2.487,-0.957],[-2.468,-0.948],[-2.449,-0.938],[-2.43,-0.929],[-2.411,-0.919],[-2.393,-0.909],[-2.374,-0.898],[-2.355,-0.888],[-2.337,-0.878],[-2.318,-0.868],[-2.3,-0.857],[-2.282,-0.847],[-2.264,-0.835],[-2.246,-0.823],[-2.228,-0.812],[-2.21,-0.801],[-2.193,-0.789],[-2.175,-0.778],[-2.157,-0.767],[-2.139,-0.756],[-2.121,-0.744],[-2.104,-0.731],[-2.086,-0.72],[-2.068,-0.708],[-2.051,-0.697],[-2.033,-0.684],[-2.016,-0.672],[-1.999,-0.659],[-1.983,-0.646],[-1.966,-0.633],[-1.949,-0.62],[-1.932,-0.607],[-1.915,-0.595],[-1.898,-0.582],[-1.881,-0.57],[-1.863,-0.559],[-1.845,-0.548],[-1.827,-0.536],[-1.81,-0.524],[-1.793,-0.511],[-1.776,-0.498],[-1.76,-0.485],[-1.744,-0.471],[-1.728,-0.457],[-1.712,-0.443],[-1.696,-0.429],[-1.68,-0.416],[-1.664,-0.402],[-1.648,-0.388],[-1.632,-0.373],[-1.616,-0.359],[-1.6,-0.346],[-1.584,-0.332],[-1.567,-0.319],[-1.551,-0.305],[-1.534,-0.292],[-1.518,-0.278],[-1.502,-0.265],[-1.486,-0.251],[-1.47,-0.237],[-1.454,-0.223],[-1.438,-0.209],[-1.423,-0.195],[-1.408,-0.179],[-1.393,-0.164],[-1.379,-0.149],[-1.364,-0.133],[-1.35,-0.118],[-1.335,-0.102],[-1.32,-0.087],[-1.306,-0.072],[-1.291,-0.056],[-1.277,-0.041],[-1.262,-0.026],[-1.247,-0.011],[-1.232,0.004],[-1.218,0.02],[-1.203,0.035],[-1.189,0.051],[-1.175,0.067],[-1.161,0.083],[-1.147,0.099],[-1.133,0.115],[-1.12,0.131],[-1.106,0.147],[-1.092,0.163],[-1.078,0.179],[-1.063,0.194],[-1.049,0.21],[-1.035,0.226],[-1.02,0.241],[-1.006,0.257],[-0.992,0.272],[-0.978,0.288],[-0.964,0.304],[-0.95,0.321],[-0.937,0.337],[-0.923,0.353],[-0.909,0.369],[-0.896,0.385],[-0.882,0.402],[-0.869,0.418],[-0.856,0.435],[-0.842,0.451],[-0.829,0.467],[-0.815,0.483],[-0.801,0.499],[-0.787,0.515],[-0.773,0.531],[-0.759,0.547],[-0.745,0.563],[-0.731,0.579],[-0.718,0.595],[-0.703,0.611],[-0.689,0.627],[-0.675,0.642],[-0.661,0.658],[-0.646,0.674],[-0.633,0.69],[-0.619,0.706],[-0.605,0.722],[-0.592,0.738],[-0.578,0.755],[-0.565,0.771],[-0.552,0.788],[-0.538,0.804],[-0.525,0.821],[-0.511,0.837],[-0.498,0.853],[-0.484,0.869],[-0.469,0.885],[-0.455,0.9],[-0.44,0.915],[-0.425,0.93],[-0.41,0.945],[-0.394,0.959],[-0.379,0.974],[-0.365,0.989],[-0.35,1.005],[-0.336,1.02],[-0.322,1.036],[-0.308,1.052],[-0.294,1.069],[-0.281,1.085],[-0.267,1.101],[-0.254,1.118],[-0.24,1.134],[-0.226,1.15],[-0.213,1.166],[-0.2,1.183],[-0.186,1.199],[-0.171,1.214],[-0.151,1.22],[-0.134,1.209],[-0.128,1.189],[-0.131,1.168],[-0.14,1.149],[-0.15,1.13],[-0.16,1.112],[-0.17,1.093],[-0.18,1.074],[-0.189,1.055],[-0.197,1.036],[-0.205,1.016],[-0.212,0.996],[-0.219,0.976],[-0.227,0.956],[-0.236,0.937],[-0.243,0.917],[-0.249,0.897],[-0.254,0.876],[-0.26,0.856],[-0.267,0.836],[-0.273,0.816],[-0.277,0.795],[-0.277,0.774],[-0.277,0.753],[-0.281,0.732],[-0.285,0.711],[-0.291,0.691],[-0.299,0.671],[-0.307,0.651],[-0.313,0.631],[-0.316,0.61],[-0.319,0.589],[-0.323,0.568],[-0.327,0.547],[-0.331,0.527],[-0.335,0.506],[-0.339,0.485],[-0.343,0.464],[-0.345,0.443],[-0.347,0.422],[-0.349,0.401],[-0.351,0.38],[-0.354,0.359],[-0.356,0.338],[-0.357,0.317],[-0.358,0.295],[-0.36,0.274],[-0.363,0.253],[-0.366,0.233],[-0.369,0.212],[-0.37,0.19],[-0.372,0.169],[-0.375,0.148],[-0.379,0.128],[-0.382,0.107],[-0.384,0.085],[-0.385,0.064],[-0.386,0.043],[-0.385,0.022],[-0.384,0.001],[-0.384,-0.02],[-0.384,-0.041],[-0.387,-0.062],[-0.39,-0.083],[-0.393,-0.104],[-0.395,-0.125],[-0.397,-0.147],[-0.399,-0.168],[-0.4,-0.189],[-0.4,-0.21],[-0.4,-0.231],[-0.4,-0.252],[-0.401,-0.274],[-0.404,-0.295],[-0.406,-0.316],[-0.41,-0.336],[-0.415,-0.357],[-0.42,-0.378],[-0.423,-0.398],[-0.426,-0.42],[-0.427,-0.441],[-0.425,-0.462],[-0.424,-0.483],[-0.425,-0.504],[-0.425,-0.525],[-0.424,-0.546],[-0.424,-0.568],[-0.424,-0.589],[-0.425,-0.61],[-0.431,-0.63],[-0.437,-0.65],[-0.443,-0.671],[-0.447,-0.692],[-0.45,-0.713],[-0.454,-0.733],[-0.458,-0.754],[-0.462,-0.775],[-0.466,-0.796],[-0.474,-0.816],[-0.483,-0.835],[-0.493,-0.853],[-0.501,-0.873],[-0.509,-0.893],[-0.519,-0.911],[-0.532,-0.928],[-0.546,-0.944],[-0.561,-0.959],[-0.576,-0.973],[-0.592,-0.987],[-0.609,-1.0],[-0.627,-1.011],[-0.646,-1.021],[-0.665,-1.03],[-0.685,-1.038],[-0.705,-1.044],[-0.725,-1.051],[-0.745,-1.059],[-0.763,-1.069],[-0.782,-1.079],[-0.799,-1.091],[-0.817,-1.103],[-0.834,-1.116],[-0.85,-1.129],[-0.866,-1.144],[-0.88,-1.159],[-0.894,-1.175],[-0.906,-1.192],[-0.918,-1.21],[-0.926,-1.23],[-0.923,-1.25],[-0.91,-1.267],[-0.894,-1.281],[-0.876,-1.292],[-0.858,-1.303],[-0.839,-1.312],[-0.819,-1.319],[-0.798,-1.323],[-0.777,-1.325],[-0.756,-1.324],[-0.735,-1.32],[-0.714,-1.315],[-0.694,-1.311],[-0.673,-1.306],[-0.653,-1.3],[-0.633,-1.292],[-0.615,-1.282],[-0.597,-1.27],[-0.579,-1.258],[-0.562,-1.246],[-0.545,-1.233],[-0.528,-1.22],[-0.512,-1.207],[-0.495,-1.194],[-0.479,-1.18],[-0.463,-1.167],[-0.446,-1.153],[-0.43,-1.14],[-0.414,-1.126],[-0.397,-1.114],[-0.38,-1.101],[-0.363,-1.088],[-0.346,-1.075],[-0.33,-1.061],[-0.314,-1.048],[-0.298,-1.034],[-0.282,-1.02],[-0.265,-1.006],[-0.249,-0.993],[-0.233,-0.979],[-0.218,-0.965],[-0.202,-0.95],[-0.187,-0.936],[-0.171,-0.921],[-0.156,-0.907],[-0.14,-0.892],[-0.124,-0.878],[-0.108,-0.865],[-0.092,-0.851],[-0.077,-0.837],[-0.062,-0.822],[-0.046,-0.807],[-0.03,-0.794],[-0.01,-0.786],[0.011,-0.785],[0.032,-0.789],[0.053,-0.793],[0.073,-0.797],[0.094,-0.801],[0.115,-0.805],[0.136,-0.809],[0.157,-0.811],[0.178,-0.811],[0.199,-0.81],[0.22,-0.813],[0.241,-0.819],[0.261,-0.823],[0.282,-0.827],[0.303,-0.831],[0.324,-0.835],[0.345,-0.839],[0.366,-0.842],[0.384,-0.853],[0.386,-0.873],[0.375,-0.89],[0.36,-0.906],[0.345,-0.921],[0.33,-0.936],[0.315,-0.951],[0.3,-0.966],[0.286,-0.981],[0.271,-0.997],[0.256,-1.012],[0.241,-1.027],[0.226,-1.042],[0.211,-1.057],[0.196,-1.072],[0.181,-1.087],[0.167,-1.102],[0.153,-1.118],[0.139,-1.134],[0.125,-1.15],[0.11,-1.165],[0.095,-1.18],[0.08,-1.195],[0.065,-1.21],[0.051,-1.225],[0.036,-1.241],[0.022,-1.256],[0.007,-1.271],[-0.008,-1.286],[-0.023,-1.301],[-0.038,-1.316],[-0.053,-1.332],[-0.068,-1.347],[-0.083,-1.362],[-0.098,-1.377],[-0.112,-1.392],[-0.126,-1.408],[-0.14,-1.424],[-0.154,-1.44],[-0.168,-1.456],[-0.181,-1.472],[-0.195,-1.488],[-0.209,-1.504],[-0.222,-1.521],[-0.235,-1.538],[-0.247,-1.555],[-0.26,-1.572],[-0.272,-1.589],[-0.286,-1.606],[-0.299,-1.622],[-0.313,-1.638],[-0.326,-1.654],[-0.339,-1.671],[-0.351,-1.689],[-0.363,-1.706],[-0.374,-1.725],[-0.384,-1.743],[-0.393,-1.762],[-0.403,-1.781],[-0.411,-1.801],[-0.419,-1.82],[-0.426,-1.84],[-0.431,-1.861],[-0.434,-1.882],[-0.434,-1.903],[-0.43,-1.924],[-0.424,-1.944],[-0.417,-1.964],[-0.409,-1.984],[-0.402,-2.004],[-0.394,-2.023],[-0.384,-2.042],[-0.372,-2.06],[-0.358,-2.075],[-0.342,-2.089],[-0.325,-2.102],[-0.308,-2.115],[-0.291,-2.127],[-0.274,-2.14],[-0.257,-2.152],[-0.239,-2.164],[-0.222,-2.176],[-0.204,-2.187],[-0.186,-2.198],[-0.167,-2.207],[-0.147,-2.215],[-0.126,-2.22],[-0.106,-2.225],[-0.085,-2.227],[-0.064,-2.229],[-0.042,-2.231],[-0.021,-2.231],[-0.0,-2.231],[0.021,-2.231],[0.042,-2.231],[0.064,-2.231],[0.085,-2.23],[0.106,-2.229],[0.127,-2.228],[0.148,-2.226],[0.169,-2.222],[0.19,-2.218],[0.21,-2.213],[0.23,-2.205],[0.249,-2.195],[0.267,-2.184],[0.285,-2.174],[0.303,-2.163],[0.322,-2.153],[0.341,-2.143],[0.359,-2.133],[0.378,-2.122],[0.396,-2.112],[0.415,-2.102],[0.434,-2.093],[0.453,-2.083],[0.472,-2.074],[0.491,-2.065],[0.51,-2.056],[0.528,-2.045],[0.546,-2.033],[0.563,-2.021],[0.58,-2.007],[0.596,-1.994],[0.612,-1.981],[0.629,-1.967],[0.645,-1.954],[0.661,-1.94],[0.677,-1.926],[0.694,-1.913],[0.71,-1.9],[0.727,-1.887],[0.744,-1.874],[0.761,-1.861],[0.778,-1.848],[0.795,-1.836],[0.812,-1.824],[0.83,-1.812],[0.846,-1.798],[0.861,-1.783],[0.876,-1.769],[0.892,-1.754],[0.907,-1.74],[0.924,-1.726],[0.94,-1.713],[0.957,-1.7],[0.973,-1.687],[0.99,-1.673],[1.006,-1.659],[1.02,-1.644],[1.035,-1.629],[1.051,-1.615],[1.068,-1.602],[1.085,-1.589],[1.102,-1.577],[1.118,-1.563],[1.134,-1.549],[1.148,-1.533],[1.163,-1.518],[1.178,-1.504],[1.194,-1.489],[1.209,-1.474],[1.224,-1.459],[1.238,-1.444],[1.254,-1.429],[1.269,-1.415],[1.285,-1.401],[1.301,-1.387],[1.318,-1.374],[1.333,-1.359],[1.349,-1.345],[1.364,-1.33],[1.379,-1.315],[1.393,-1.299],[1.404,-1.281],[1.407,-1.26],[1.4,-1.241],[1.386,-1.225],[1.369,-1.213],[1.35,-1.203],[1.331,-1.194],[1.311,-1.186],[1.291,-1.18],[1.27,-1.176],[1.249,-1.178],[1.229,-1.185],[1.21,-1.194],[1.192,-1.205],[1.175,-1.218],[1.158,-1.231],[1.143,-1.245],[1.127,-1.26],[1.112,-1.274],[1.096,-1.289],[1.08,-1.303],[1.064,-1.316],[1.047,-1.329],[1.031,-1.343],[1.015,-1.357],[1.0,-1.371],[0.985,-1.386],[0.969,-1.401],[0.954,-1.415],[0.938,-1.429],[0.922,-1.443],[0.907,-1.458],[0.892,-1.473],[0.877,-1.488],[0.862,-1.503],[0.847,-1.517],[0.831,-1.532],[0.815,-1.545],[0.798,-1.559],[0.782,-1.573],[0.767,-1.587],[0.752,-1.602],[0.736,-1.616],[0.72,-1.63],[0.704,-1.644],[0.687,-1.657],[0.671,-1.671],[0.655,-1.685],[0.639,-1.699],[0.623,-1.713],[0.608,-1.727],[0.592,-1.741],[0.576,-1.756],[0.56,-1.768],[0.542,-1.78],[0.523,-1.79],[0.504,-1.799],[0.486,-1.811],[0.469,-1.823],[0.453,-1.837],[0.437,-1.851],[0.421,-1.865],[0.405,-1.878],[0.388,-1.891],[0.371,-1.903],[0.353,-1.915],[0.336,-1.927],[0.318,-1.938],[0.3,-1.95],[0.282,-1.96],[0.263,-1.971],[0.244,-1.98],[0.224,-1.988],[0.205,-1.996],[0.185,-2.005],[0.167,-2.015],[0.149,-2.026],[0.13,-2.036],[0.11,-2.041],[0.089,-2.039],[0.07,-2.029],[0.056,-2.013],[0.05,-1.993],[0.053,-1.972],[0.063,-1.954],[0.075,-1.936],[0.086,-1.918],[0.098,-1.901],[0.109,-1.883],[0.12,-1.865],[0.132,-1.847],[0.145,-1.83],[0.158,-1.814],[0.172,-1.798],[0.186,-1.782],[0.201,-1.767],[0.216,-1.752],[0.231,-1.737],[0.244,-1.72],[0.258,-1.704],[0.271,-1.688],[0.285,-1.671],[0.299,-1.656],[0.313,-1.64],[0.328,-1.624],[0.342,-1.609],[0.356,-1.593],[0.371,-1.578],[0.384,-1.561],[0.397,-1.545],[0.411,-1.529],[0.425,-1.513],[0.439,-1.497],[0.454,-1.482],[0.469,-1.467],[0.484,-1.452],[0.499,-1.437],[0.514,-1.422],[0.528,-1.406],[0.542,-1.391],[0.557,-1.375],[0.571,-1.36],[0.586,-1.344],[0.6,-1.329],[0.615,-1.313],[0.63,-1.298],[0.644,-1.282],[0.658,-1.267],[0.673,-1.251],[0.687,-1.236],[0.702,-1.221],[0.717,-1.206],[0.732,-1.191],[0.747,-1.175],[0.761,-1.16],[0.775,-1.144],[0.789,-1.128],[0.803,-1.113],[0.817,-1.096],[0.829,-1.079],[0.842,-1.062],[0.855,-1.046],[0.87,-1.03],[0.884,-1.015],[0.899,-1.0],[0.914,-0.984],[0.928,-0.969],[0.942,-0.953],[0.956,-0.937],[0.97,-0.921],[0.985,-0.906],[1.002,-0.893],[1.02,-0.882],[1.039,-0.874],[1.06,-0.868],[1.081,-0.864],[1.102,-0.861],[1.123,-0.859],[1.144,-0.859],[1.165,-0.859],[1.186,-0.859],[1.207,-0.859],[1.229,-0.858],[1.25,-0.855],[1.27,-0.852],[1.291,-0.848],[1.312,-0.845],[1.333,-0.842],[1.354,-0.84],[1.375,-0.838],[1.396,-0.835],[1.417,-0.832],[1.438,-0.827],[1.459,-0.822],[1.48,-0.819],[1.501,-0.818],[1.522,-0.817],[1.543,-0.814],[1.564,-0.81],[1.584,-0.806],[1.605,-0.802],[1.626,-0.798],[1.647,-0.793],[1.667,-0.789],[1.688,-0.786],[1.709,-0.783],[1.73,-0.78],[1.751,-0.775],[1.771,-0.768],[1.79,-0.759],[1.81,-0.751],[1.83,-0.744],[1.85,-0.738],[1.87,-0.731],[1.89,-0.725],[1.911,-0.719],[1.931,-0.713],[1.951,-0.708],[1.972,-0.702],[1.992,-0.695],[2.012,-0.688],[2.032,-0.68],[2.051,-0.673],[2.072,-0.667],[2.092,-0.662],[2.113,-0.656],[2.132,-0.648],[2.152,-0.64],[2.172,-0.632],[2.191,-0.624],[2.21,-0.615],[2.229,-0.606],[2.249,-0.598],[2.268,-0.589],[2.288,-0.581],[2.307,-0.572],[2.327,-0.564],[2.346,-0.557],[2.366,-0.549],[2.385,-0.54],[2.404,-0.529],[2.422,-0.518],[2.441,-0.509],[2.46,-0.501],[2.48,-0.493],[2.499,-0.485],[2.519,-0.476],[2.538,-0.467],[2.557,-0.457],[2.576,-0.448],[2.594,-0.438],[2.613,-0.428],[2.632,-0.419],[2.651,-0.409],[2.669,-0.398],[2.686,-0.385],[2.703,-0.373],[2.722,-0.362],[2.741,-0.354],[2.761,-0.345],[2.78,-0.336],[2.798,-0.326],[2.816,-0.315],[2.832,-0.301],[2.849,-0.288],[2.865,-0.274],[2.882,-0.262],[2.9,-0.251],[2.918,-0.24],[2.936,-0.228],[2.953,-0.215],[2.97,-0.203],[2.988,-0.191],[3.006,-0.18],[3.024,-0.169],[3.043,-0.161],[3.062,-0.15],[3.079,-0.138],[3.096,-0.125],[3.112,-0.112],[3.128,-0.097],[3.144,-0.083],[3.159,-0.069],[3.176,-0.056],[3.192,-0.042],[3.209,-0.029],[3.225,-0.015],[3.242,-0.002],[3.258,0.011],[3.275,0.024],[3.292,0.037],[3.309,0.05],[3.326,0.062],[3.344,0.073],[3.363,0.082],[3.384,0.085],[3.405,0.084],[3.426,0.081],[3.447,0.078],[3.468,0.076],[3.489,0.074],[3.51,0.073],[3.531,0.074],[3.552,0.075],[3.574,0.075],[3.595,0.076],[3.616,0.077],[3.637,0.079],[3.658,0.082],[3.679,0.083],[3.7,0.085],[3.721,0.088],[3.742,0.091],[3.763,0.096],[3.783,0.101],[3.804,0.106],[3.825,0.11],[3.846,0.114],[3.866,0.118],[3.887,0.123],[3.907,0.129],[3.927,0.135],[3.948,0.141],[3.968,0.146],[3.989,0.151],[4.009,0.158],[4.029,0.165],[4.049,0.173],[4.069,0.178],[4.09,0.183],[4.111,0.187],[4.131,0.191],[4.152,0.195],[4.172,0.201],[4.193,0.208],[4.212,0.216],[4.232,0.224],[4.251,0.234],[4.27,0.243],[4.289,0.252],[4.308,0.261],[4.327,0.27],[4.346,0.28],[4.365,0.289],[4.384,0.298],[4.403,0.308],[4.422,0.318],[4.44,0.328],[4.459,0.339],[4.477,0.348],[4.496,0.359],[4.514,0.37],[4.532,0.382],[4.549,0.394],[4.566,0.406],[4.584,0.418],[4.601,0.43],[4.618,0.443],[4.634,0.457],[4.65,0.471],[4.665,0.485],[4.681,0.499],[4.697,0.514],[4.713,0.527],[4.729,0.541],[4.745,0.555],[4.759,0.571],[4.772,0.588],[4.784,0.605],[4.797,0.622],[4.809,0.639],[4.822,0.656],[4.833,0.674],[4.845,0.692],[4.856,0.71],[4.868,0.727],[4.879,0.745],[4.89,0.763],[4.899,0.783],[4.906,0.803],[4.911,0.823],[4.919,0.843],[4.929,0.861],[4.94,0.879],[4.949,0.898],[4.957,0.918],[4.964,0.938],[4.972,0.958],[4.979,0.978],[4.981,0.999],[4.981,1.02],[4.982,1.041],[4.986,1.062],[4.991,1.083],[4.996,1.103],[4.999,1.124],[5.0,1.145],[4.999,1.166],[4.998,1.188],[4.996,1.209],[4.991,1.229],[4.986,1.25],[4.981,1.271],[4.978,1.291],[4.973,1.312],[4.969,1.333],[4.963,1.353],[4.955,1.373],[4.945,1.392],[4.936,1.411],[4.929,1.431],[4.921,1.45],[4.912,1.469],[4.9,1.487],[4.888,1.505],[4.875,1.521],[4.861,1.537],[4.848,1.553],[4.834,1.57],[4.821,1.586],[4.809,1.604],[4.796,1.621],[4.785,1.638],[4.773,1.656],[4.761,1.673],[4.749,1.691],[4.737,1.709],[4.725,1.726],[4.713,1.744],[4.7,1.76],[4.683,1.773],[4.665,1.783],[4.645,1.791],[4.627,1.802],[4.61,1.815],[4.594,1.828],[4.578,1.842],[4.562,1.856],[4.546,1.87],[4.529,1.883],[4.512,1.895],[4.494,1.907],[4.476,1.918],[4.457,1.928],[4.439,1.938],[4.42,1.948],[4.401,1.957],[4.381,1.965],[4.362,1.973],[4.342,1.981],[4.322,1.989],[4.303,1.996],[4.283,2.005],[4.264,2.014],[4.245,2.023],[4.226,2.032],[4.206,2.039],[4.186,2.045],[4.165,2.051],[4.145,2.057],[4.124,2.062],[4.104,2.068],[4.083,2.073],[4.063,2.077],[4.042,2.082],[4.021,2.086],[4.0,2.089],[3.979,2.092],[3.958,2.096],[3.937,2.098],[3.916,2.101],[3.895,2.104],[3.874,2.106],[3.853,2.108],[3.832,2.11],[3.811,2.112],[3.79,2.113],[3.769,2.114],[3.747,2.115],[3.726,2.116],[3.705,2.117],[3.684,2.118],[3.663,2.117],[3.642,2.116],[3.62,2.115],[3.599,2.115],[3.578,2.115],[3.557,2.115],[3.536,2.114],[3.515,2.113],[3.493,2.113],[3.472,2.112],[3.451,2.111],[3.43,2.11],[3.409,2.109],[3.388,2.107],[3.367,2.106],[3.345,2.104],[3.324,2.102],[3.303,2.1],[3.282,2.097],[3.261,2.094],[3.24,2.09],[3.22,2.087],[3.199,2.084],[3.178,2.082],[3.157,2.079],[3.136,2.076],[3.115,2.072],[3.094,2.068],[3.073,2.063],[3.053,2.059],[3.032,2.054],[3.011,2.05],[2.99,2.046],[2.97,2.042],[2.949,2.038],[2.928,2.032],[2.908,2.026],[2.888,2.02],[2.868,2.014],[2.847,2.008],[2.827,2.001],[2.807,1.995],[2.787,1.988],[2.767,1.982],[2.746,1.976],[2.726,1.971],[2.706,1.964],[2.686,1.957],[2.666,1.95],[2.646,1.942],[2.626,1.936],[2.606,1.929],[2.586,1.921],[2.567,1.912],[2.548,1.903],[2.529,1.893],[2.51,1.883],[2.491,1.875],[2.471,1.868],[2.451,1.861],[2.431,1.853],[2.412,1.845],[2.393,1.836],[2.374,1.826],[2.355,1.816],[2.336,1.806],[2.318,1.796],[2.299,1.785],[2.281,1.775],[2.263,1.764],[2.245,1.753],[2.226,1.743],[2.208,1.732],[2.19,1.721],[2.172,1.71],[2.154,1.699],[2.136,1.688],[2.118,1.677],[2.099,1.666],[2.081,1.655],[2.063,1.644],[2.045,1.633],[2.027,1.621],[2.01,1.61],[1.992,1.598],[1.974,1.586],[1.957,1.574],[1.94,1.562],[1.922,1.55],[1.904,1.539],[1.886,1.528],[1.868,1.517],[1.85,1.506],[1.832,1.494],[1.815,1.482],[1.799,1.469],[1.783,1.455],[1.767,1.44],[1.752,1.425],[1.736,1.411],[1.72,1.398],[1.703,1.384],[1.687,1.371],[1.67,1.358],[1.655,1.344],[1.639,1.33],[1.623,1.316],[1.607,1.302],[1.59,1.289],[1.573,1.276],[1.557,1.263],[1.54,1.249],[1.524,1.235],[1.508,1.222],[1.493,1.207],[1.477,1.193],[1.461,1.179],[1.445,1.165],[1.429,1.151],[1.413,1.137],[1.398,1.123],[1.382,1.108],[1.366,1.094],[1.351,1.08],[1.336,1.065],[1.32,1.05],[1.305,1.036],[1.29,1.021],[1.275,1.006],[1.26,0.991],[1.245,0.976],[1.229,0.962],[1.214,0.947],[1.198,0.933],[1.183,0.918],[1.169,0.903],[1.154,0.887],[1.14,0.872],[1.126,0.856],[1.112,0.84],[1.098,0.824],[1.083,0.809],[1.069,0.793],[1.054,0.777],[1.04,0.762],[1.025,0.747],[1.01,0.733],[0.994,0.718],[0.978,0.704],[0.963,0.689],[0.948,0.675],[0.933,0.66],[0.918,0.644],[0.904,0.629],[0.89,0.613],[0.876,0.596],[0.863,0.58],[0.849,0.564],[0.836,0.548],[0.822,0.531],[0.808,0.516],[0.794,0.5],[0.78,0.483],[0.767,0.467],[0.754,0.45],[0.741,0.434],[0.727,0.418],[0.713,0.401],[0.7,0.385],[0.686,0.369],[0.672,0.353],[0.658,0.337],[0.645,0.321],[0.631,0.305],[0.617,0.288],[0.603,0.272],[0.59,0.256],[0.576,0.24],[0.562,0.224],[0.548,0.208],[0.534,0.192],[0.52,0.177],[0.506,0.161],[0.491,0.145],[0.477,0.13],[0.463,0.114],[0.449,0.098],[0.435,0.082],[0.421,0.066],[0.407,0.05],[0.393,0.034],[0.379,0.018],[0.366,0.002],[0.352,-0.014],[0.339,-0.031],[0.326,-0.047],[0.313,-0.064],[0.3,-0.081],[0.287,-0.097],[0.273,-0.114],[0.26,-0.131],[0.247,-0.147],[0.234,-0.164],[0.221,-0.181],[0.208,-0.197],[0.193,-0.212],[0.176,-0.225],[0.156,-0.231],[0.136,-0.224],[0.127,-0.206],[0.129,-0.185],[0.134,-0.165],[0.14,-0.145],[0.148,-0.125],[0.156,-0.105],[0.163,-0.085],[0.171,-0.065],[0.178,-0.045],[0.184,-0.025],[0.19,-0.005],[0.194,0.016],[0.199,0.037],[0.204,0.057],[0.21,0.078],[0.215,0.098],[0.22,0.119],[0.222,0.14],[0.225,0.161],[0.228,0.182],[0.233,0.202],[0.238,0.223],[0.242,0.244],[0.246,0.264],[0.248,0.285],[0.251,0.307],[0.254,0.327],[0.257,0.348],[0.261,0.369],[0.263,0.39],[0.266,0.411],[0.268,0.432],[0.27,0.453],[0.273,0.474],[0.276,0.495],[0.281,0.516],[0.284,0.537],[0.286,0.558],[0.288,0.579],[0.291,0.6],[0.294,0.621],[0.298,0.642],[0.302,0.663],[0.305,0.684],[0.308,0.705],[0.311,0.726],[0.313,0.747],[0.316,0.768],[0.318,0.789],[0.321,0.81],[0.324,0.831],[0.328,0.851],[0.332,0.872],[0.335,0.893],[0.338,0.914],[0.341,0.935],[0.343,0.956],[0.346,0.977],[0.35,0.998],[0.354,1.019],[0.357,1.04],[0.36,1.061],[0.363,1.082],[0.367,1.103],[0.369,1.124],[0.372,1.145],[0.376,1.165],[0.38,1.186],[0.383,1.207],[0.387,1.228],[0.392,1.249],[0.398,1.269],[0.404,1.289],[0.41,1.31],[0.415,1.33],[0.422,1.35],[0.43,1.37],[0.437,1.39],[0.444,1.41],[0.449,1.43],[0.453,1.451],[0.458,1.472],[0.463,1.492],[0.47,1.512],[0.478,1.532],[0.487,1.551],[0.495,1.57],[0.504,1.59],[0.515,1.608],[0.526,1.626],[0.538,1.643],[0.551,1.66],[0.564,1.677],[0.577,1.694],[0.59,1.71],[0.604,1.727],[0.618,1.742],[0.632,1.758],[0.647,1.773],[0.662,1.789],[0.676,1.804],[0.691,1.819],[0.706,1.834],[0.721,1.848],[0.736,1.863],[0.751,1.879],[0.762,1.897],[0.766,1.918],[0.759,1.937],[0.744,1.953],[0.726,1.964],[0.707,1.972],[0.686,1.978],[0.666,1.982],[0.644,1.982],[0.623,1.98],[0.603,1.976],[0.582,1.971],[0.562,1.966],[0.542,1.958],[0.522,1.95],[0.504,1.94],[0.485,1.93],[0.466,1.92],[0.447,1.911],[0.427,1.903],[0.408,1.894],[0.389,1.885],[0.37,1.875],[0.352,1.864],[0.334,1.853],[0.316,1.843],[0.297,1.832],[0.279,1.821],[0.262,1.809],[0.244,1.797],[0.226,1.786],[0.209,1.774],[0.192,1.762],[0.174,1.75],[0.156,1.738],[0.138,1.727],[0.121,1.715],[0.103,1.703],[0.086,1.691],[0.068,1.679],[0.051,1.667],[0.033,1.655],[0.016,1.643],[-0.002,1.631],[-0.019,1.619],[-0.035,1.605],[-0.051,1.591],[-0.067,1.577],[-0.083,1.563],[-0.099,1.55],[-0.116,1.537],[-0.133,1.524],[-0.149,1.511],[-0.165,1.497],[-0.181,1.483],[-0.197,1.469],[-0.213,1.454],[-0.228,1.439],[-0.242,1.424],[-0.258,1.41],[-0.275,1.397],[-0.295,1.391],[-0.316,1.394],[-0.335,1.402],[-0.354,1.412],[-0.373,1.421],[-0.393,1.427],[-0.414,1.43],[-0.435,1.428],[-0.456,1.422],[-0.475,1.413],[-0.493,1.402],[-0.51,1.39],[-0.526,1.376],[-0.542,1.362],[-0.558,1.348],[-0.573,1.333],[-0.588,1.318],[-0.603,1.303],[-0.618,1.288],[-0.634,1.274],[-0.65,1.26],[-0.666,1.247],[-0.683,1.234],[-0.7,1.222],[-0.718,1.21],[-0.735,1.198],[-0.752,1.186],[-0.77,1.174],[-0.789,1.164],[-0.807,1.153],[-0.826,1.143],[-0.844,1.133],[-0.863,1.123],[-0.882,1.114],[-0.901,1.105],[-0.92,1.096],[-0.94,1.088],[-0.96,1.081],[-0.98,1.075],[-1.001,1.069],[-1.021,1.063],[-1.042,1.058],[-1.062,1.053],[-1.083,1.05],[-1.104,1.047],[-1.125,1.045],[-1.146,1.045],[-1.168,1.046],[-1.188,1.05],[-1.209,1.056],[-1.228,1.066],[-1.243,1.079],[-1.255,1.097],[-1.261,1.117],[-1.262,1.138],[-1.258,1.159],[-1.25,1.179],[-1.241,1.198],[-1.231,1.217],[-1.221,1.235],[-1.21,1.253],[-1.199,1.271],[-1.186,1.288],[-1.174,1.305],[-1.161,1.322],[-1.148,1.339],[-1.135,1.356],[-1.123,1.373],[-1.11,1.39],[-1.098,1.407],[-1.085,1.424],[-1.073,1.442],[-1.061,1.459],[-1.048,1.476],[-1.035,1.492],[-1.022,1.509],[-1.009,1.526],[-0.997,1.543],[-0.986,1.561],[-0.976,1.58],[-0.967,1.599],[-0.96,1.619],[-0.952,1.639],[-0.945,1.659],[-0.937,1.679],[-0.929,1.698],[-0.922,1.718],[-0.917,1.739],[-0.912,1.759],[-0.907,1.78],[-0.903,1.801],[-0.902,1.822],[-0.905,1.843],[-0.911,1.863],[-0.919,1.883],[-0.926,1.903],[-0.932,1.923],[-0.94,1.943],[-0.949,1.962],[-0.96,1.98],[-0.972,1.997],[-0.986,2.013],[-1.001,2.028],[-1.016,2.043],[-1.033,2.056],[-1.05,2.069],[-1.067,2.081],[-1.085,2.092],[-1.103,2.103],[-1.121,2.114],[-1.139,2.125],[-1.158,2.135],[-1.177,2.144],[-1.197,2.152],[-1.217,2.158],[-1.238,2.163],[-1.258,2.168],[-1.279,2.172],[-1.3,2.176],[-1.321,2.179],[-1.342,2.181],[-1.363,2.185],[-1.384,2.189],[-1.403,2.198],[-1.42,2.21],[-1.439,2.22],[-1.459,2.226],[-1.48,2.229]],"h":[[[4.598,1.405],[4.618,1.402],[4.635,1.389],[4.645,1.37],[4.648,1.349],[4.648,1.328],[4.647,1.307],[4.647,1.286],[4.646,1.264],[4.645,1.243],[4.643,1.222],[4.642,1.201],[4.642,1.179],[4.642,1.158],[4.642,1.137],[4.642,1.116],[4.642,1.094],[4.641,1.073],[4.639,1.052],[4.635,1.031],[4.629,1.01],[4.621,0.991],[4.612,0.972],[4.602,0.953],[4.593,0.934],[4.586,0.914],[4.581,0.893],[4.576,0.872],[4.568,0.852],[4.558,0.834],[4.546,0.816],[4.533,0.8],[4.519,0.783],[4.505,0.767],[4.491,0.751],[4.477,0.735],[4.462,0.72],[4.448,0.704],[4.433,0.689],[4.418,0.674],[4.403,0.659],[4.387,0.644],[4.372,0.63],[4.356,0.616],[4.34,0.602],[4.324,0.588],[4.307,0.575],[4.29,0.562],[4.273,0.549],[4.256,0.536],[4.24,0.522],[4.224,0.508],[4.207,0.495],[4.189,0.484],[4.17,0.475],[4.151,0.465],[4.133,0.454],[4.115,0.442],[4.097,0.431],[4.078,0.421],[4.059,0.413],[4.039,0.404],[4.02,0.395],[4.001,0.385],[3.982,0.376],[3.962,0.368],[3.942,0.36],[3.922,0.354],[3.901,0.348],[3.882,0.34],[3.863,0.331],[3.843,0.322],[3.824,0.314],[3.803,0.308],[3.783,0.302],[3.762,0.297],[3.741,0.293],[3.721,0.288],[3.7,0.283],[3.68,0.277],[3.659,0.271],[3.639,0.265],[3.618,0.259],[3.597,0.259],[3.583,0.273],[3.581,0.294],[3.589,0.314],[3.603,0.33],[3.619,0.343],[3.636,0.356],[3.653,0.37],[3.668,0.385],[3.682,0.401],[3.695,0.417],[3.709,0.434],[3.723,0.45],[3.738,0.465],[3.754,0.479],[3.769,0.494],[3.784,0.509],[3.797,0.526],[3.808,0.544],[3.821,0.561],[3.835,0.577],[3.85,0.592],[3.866,0.606],[3.88,0.622],[3.894,0.638],[3.907,0.655],[3.921,0.671],[3.936,0.686],[3.951,0.701],[3.966,0.716],[3.982,0.731],[3.997,0.746],[4.011,0.761],[4.026,0.777],[4.04,0.793],[4.054,0.809],[4.067,0.825],[4.081,0.842],[4.095,0.858],[4.109,0.873],[4.124,0.889],[4.139,0.904],[4.154,0.919],[4.168,0.935],[4.181,0.952],[4.195,0.968],[4.208,0.985],[4.222,1.001],[4.237,1.016],[4.251,1.032],[4.266,1.047],[4.281,1.062],[4.295,1.078],[4.309,1.094],[4.322,1.111],[4.335,1.128],[4.349,1.144],[4.364,1.159],[4.38,1.173],[4.396,1.187],[4.411,1.202],[4.426,1.218],[4.44,1.234],[4.453,1.25],[4.467,1.266],[4.482,1.282],[4.497,1.297],[4.511,1.312],[4.526,1.328],[4.539,1.344],[4.553,1.361],[4.565,1.378],[4.579,1.394]],[[2.513,1.601],[2.534,1.6],[2.553,1.59],[2.569,1.576],[2.583,1.561],[2.597,1.545],[2.608,1.527],[2.618,1.508],[2.626,1.488],[2.633,1.468],[2.64,1.448],[2.647,1.428],[2.654,1.408],[2.662,1.388],[2.671,1.369],[2.68,1.35],[2.688,1.33],[2.691,1.309],[2.691,1.288],[2.69,1.267],[2.688,1.246],[2.686,1.224],[2.686,1.203],[2.688,1.182],[2.689,1.161],[2.689,1.14],[2.691,1.118],[2.693,1.097],[2.693,1.076],[2.691,1.055],[2.688,1.034],[2.684,1.013],[2.679,0.992],[2.672,0.972],[2.663,0.953],[2.654,0.934],[2.646,0.914],[2.638,0.894],[2.632,0.874],[2.627,0.853],[2.621,0.833],[2.615,0.813],[2.606,0.793],[2.597,0.774],[2.586,0.756],[2.576,0.737],[2.566,0.718],[2.556,0.7],[2.544,0.682],[2.531,0.665],[2.517,0.649],[2.503,0.633],[2.488,0.618],[2.473,0.603],[2.457,0.589],[2.441,0.575],[2.425,0.561],[2.41,0.546],[2.395,0.531],[2.38,0.516],[2.364,0.501],[2.349,0.487],[2.333,0.473],[2.317,0.459],[2.3,0.446],[2.284,0.433],[2.267,0.42],[2.25,0.407],[2.233,0.394],[2.215,0.382],[2.198,0.37],[2.179,0.36],[2.16,0.35],[2.142,0.34],[2.123,0.329],[2.106,0.317],[2.088,0.306],[2.07,0.295],[2.051,0.285],[2.032,0.276],[2.012,0.267],[1.993,0.259],[1.972,0.253],[1.952,0.248],[1.931,0.243],[1.911,0.236],[1.892,0.227],[1.872,0.218],[1.853,0.209],[1.833,0.202],[1.812,0.197],[1.791,0.194],[1.77,0.192],[1.749,0.189],[1.728,0.186],[1.708,0.181],[1.687,0.177],[1.666,0.175],[1.644,0.174],[1.623,0.174],[1.602,0.173],[1.581,0.171],[1.56,0.167],[1.539,0.165],[1.518,0.166],[1.497,0.169],[1.476,0.174],[1.455,0.179],[1.434,0.183],[1.414,0.188],[1.394,0.195],[1.374,0.203],[1.355,0.212],[1.336,0.221],[1.317,0.231],[1.298,0.241],[1.28,0.252],[1.262,0.263],[1.244,0.275],[1.227,0.288],[1.211,0.302],[1.195,0.316],[1.181,0.332],[1.169,0.349],[1.158,0.367],[1.148,0.386],[1.136,0.404],[1.125,0.422],[1.118,0.442],[1.123,0.462],[1.136,0.479],[1.151,0.494],[1.167,0.509],[1.182,0.524],[1.196,0.539],[1.211,0.554],[1.226,0.57],[1.24,0.585],[1.255,0.6],[1.271,0.615],[1.286,0.63],[1.301,0.645],[1.316,0.66],[1.331,0.675],[1.346,0.69],[1.361,0.705],[1.376,0.72],[1.391,0.735],[1.406,0.75],[1.421,0.765],[1.435,0.781],[1.45,0.796],[1.464,0.812],[1.478,0.828],[1.493,0.843],[1.508,0.858],[1.523,0.873],[1.539,0.887],[1.555,0.901],[1.571,0.915],[1.587,0.929],[1.604,0.942],[1.621,0.955],[1.637,0.968],[1.654,0.981],[1.67,0.996],[1.685,1.011],[1.7,1.026],[1.715,1.041],[1.731,1.055],[1.747,1.069],[1.763,1.083],[1.779,1.097],[1.795,1.111],[1.811,1.124],[1.828,1.137],[1.845,1.15],[1.862,1.163],[1.879,1.175],[1.896,1.188],[1.913,1.2],[1.93,1.213],[1.947,1.226],[1.964,1.239],[1.981,1.252],[1.997,1.265],[2.014,1.279],[2.031,1.291],[2.048,1.304],[2.065,1.317],[2.082,1.329],[2.1,1.341],[2.118,1.352],[2.136,1.364],[2.154,1.375],[2.172,1.387],[2.189,1.398],[2.207,1.41],[2.225,1.422],[2.243,1.434],[2.26,1.445],[2.278,1.457],[2.296,1.469],[2.313,1.481],[2.331,1.492],[2.349,1.503],[2.367,1.514],[2.386,1.525],[2.405,1.535],[2.423,1.545],[2.441,1.557],[2.458,1.569],[2.476,1.581],[2.494,1.593]],[[3.548,1.895],[3.569,1.896],[3.591,1.896],[3.612,1.896],[3.633,1.896],[3.654,1.896],[3.675,1.896],[3.697,1.896],[3.718,1.895],[3.739,1.892],[3.76,1.889],[3.781,1.886],[3.802,1.883],[3.823,1.88],[3.844,1.878],[3.865,1.876],[3.886,1.875],[3.907,1.874],[3.928,1.872],[3.949,1.869],[3.97,1.864],[3.99,1.859],[4.011,1.854],[4.032,1.849],[4.052,1.843],[4.072,1.838],[4.093,1.831],[4.113,1.824],[4.133,1.817],[4.153,1.81],[4.172,1.801],[4.191,1.791],[4.21,1.782],[4.229,1.773],[4.248,1.765],[4.268,1.756],[4.287,1.747],[4.305,1.736],[4.323,1.724],[4.34,1.712],[4.357,1.699],[4.373,1.686],[4.391,1.674],[4.408,1.661],[4.425,1.648],[4.44,1.633],[4.449,1.614],[4.446,1.594],[4.433,1.577],[4.418,1.563],[4.402,1.549],[4.386,1.535],[4.37,1.521],[4.354,1.507],[4.338,1.492],[4.323,1.478],[4.307,1.464],[4.291,1.45],[4.276,1.435],[4.26,1.421],[4.244,1.407],[4.229,1.392],[4.213,1.378],[4.198,1.363],[4.183,1.349],[4.167,1.334],[4.152,1.319],[4.137,1.304],[4.122,1.289],[4.107,1.274],[4.092,1.26],[4.076,1.245],[4.061,1.23],[4.046,1.216],[4.03,1.201],[4.015,1.187],[3.998,1.173],[3.982,1.159],[3.967,1.145],[3.951,1.131],[3.935,1.117],[3.92,1.103],[3.904,1.088],[3.889,1.073],[3.875,1.058],[3.86,1.042],[3.845,1.027],[3.831,1.011],[3.816,0.996],[3.802,0.98],[3.788,0.965],[3.773,0.95],[3.757,0.935],[3.743,0.92],[3.728,0.904],[3.714,0.888],[3.7,0.873],[3.686,0.857],[3.671,0.842],[3.656,0.827],[3.64,0.813],[3.622,0.802],[3.603,0.793],[3.586,0.781],[3.571,0.765],[3.56,0.747],[3.548,0.73],[3.534,0.714],[3.518,0.699],[3.503,0.685],[3.487,0.67],[3.473,0.655],[3.458,0.64],[3.443,0.625],[3.428,0.61],[3.413,0.595],[3.397,0.581],[3.381,0.567],[3.366,0.552],[3.352,0.536],[3.338,0.52],[3.324,0.504],[3.309,0.489],[3.294,0.475],[3.277,0.462],[3.261,0.448],[3.246,0.433],[3.231,0.418],[3.218,0.401],[3.205,0.385],[3.192,0.368],[3.178,0.352],[3.164,0.335],[3.15,0.32],[3.134,0.307],[3.116,0.294],[3.099,0.283],[3.081,0.271],[3.064,0.258],[3.048,0.244],[3.032,0.23],[3.016,0.216],[3.001,0.201],[2.986,0.186],[2.97,0.172],[2.955,0.158],[2.939,0.144],[2.923,0.13],[2.907,0.116],[2.891,0.102],[2.875,0.088],[2.859,0.073],[2.844,0.059],[2.827,0.046],[2.81,0.033],[2.793,0.02],[2.776,0.008],[2.759,-0.004],[2.742,-0.017],[2.725,-0.03],[2.708,-0.043],[2.691,-0.055],[2.674,-0.068],[2.657,-0.081],[2.64,-0.094],[2.624,-0.106],[2.607,-0.12],[2.59,-0.132],[2.573,-0.145],[2.555,-0.156],[2.537,-0.168],[2.519,-0.179],[2.501,-0.191],[2.483,-0.202],[2.465,-0.213],[2.447,-0.223],[2.429,-0.234],[2.41,-0.244],[2.392,-0.255],[2.374,-0.266],[2.356,-0.277],[2.338,-0.289],[2.321,-0.301],[2.303,-0.313],[2.285,-0.324],[2.267,-0.335],[2.249,-0.346],[2.231,-0.357],[2.212,-0.367],[2.194,-0.378],[2.176,-0.389],[2.157,-0.399],[2.138,-0.408],[2.119,-0.418],[2.1,-0.427],[2.081,-0.436],[2.062,-0.445],[2.043,-0.455],[2.023,-0.463],[2.004,-0.471],[1.984,-0.479],[1.964,-0.487],[1.945,-0.495],[1.925,-0.503],[1.906,-0.512],[1.887,-0.522],[1.869,-0.533],[1.851,-0.544],[1.831,-0.552],[1.811,-0.558],[1.79,-0.562],[1.769,-0.565],[1.749,-0.572],[1.729,-0.58],[1.71,-0.588],[1.69,-0.596],[1.67,-0.603],[1.65,-0.608],[1.629,-0.612],[1.608,-0.616],[1.588,-0.622],[1.567,-0.627],[1.546,-0.631],[1.525,-0.634],[1.504,-0.637],[1.483,-0.636],[1.462,-0.633],[1.441,-0.63],[1.42,-0.629],[1.399,-0.628],[1.378,-0.629],[1.356,-0.63],[1.335,-0.633],[1.314,-0.635],[1.293,-0.634],[1.273,-0.628],[1.258,-0.613],[1.258,-0.592],[1.271,-0.576],[1.287,-0.562],[1.305,-0.55],[1.322,-0.538],[1.338,-0.524],[1.353,-0.509],[1.366,-0.493],[1.379,-0.476],[1.393,-0.46],[1.407,-0.444],[1.421,-0.428],[1.435,-0.412],[1.45,-0.397],[1.464,-0.381],[1.478,-0.365],[1.493,-0.35],[1.507,-0.334],[1.521,-0.318],[1.535,-0.303],[1.55,-0.288],[1.566,-0.274],[1.583,-0.261],[1.599,-0.247],[1.607,-0.228],[1.6,-0.208],[1.585,-0.194],[1.567,-0.183],[1.548,-0.174],[1.528,-0.166],[1.508,-0.158],[1.488,-0.152],[1.467,-0.148],[1.446,-0.145],[1.425,-0.147],[1.404,-0.151],[1.384,-0.157],[1.363,-0.161],[1.342,-0.163],[1.321,-0.164],[1.3,-0.165],[1.278,-0.164],[1.257,-0.162],[1.236,-0.16],[1.215,-0.156],[1.194,-0.153],[1.173,-0.151],[1.152,-0.15],[1.131,-0.152],[1.11,-0.156],[1.09,-0.163],[1.07,-0.17],[1.051,-0.178],[1.032,-0.188],[1.014,-0.2],[0.998,-0.214],[0.983,-0.229],[0.969,-0.244],[0.954,-0.259],[0.94,-0.275],[0.925,-0.291],[0.911,-0.306],[0.897,-0.322],[0.883,-0.338],[0.869,-0.354],[0.855,-0.37],[0.841,-0.386],[0.827,-0.402],[0.812,-0.417],[0.797,-0.432],[0.782,-0.446],[0.767,-0.462],[0.753,-0.478],[0.739,-0.494],[0.725,-0.51],[0.711,-0.525],[0.697,-0.541],[0.682,-0.556],[0.668,-0.572],[0.654,-0.588],[0.64,-0.604],[0.625,-0.619],[0.607,-0.631],[0.587,-0.636],[0.566,-0.638],[0.545,-0.638],[0.523,-0.638],[0.502,-0.638],[0.481,-0.638],[0.46,-0.639],[0.439,-0.64],[0.417,-0.64],[0.396,-0.64],[0.375,-0.641],[0.354,-0.642],[0.333,-0.643],[0.312,-0.644],[0.29,-0.646],[0.269,-0.648],[0.248,-0.65],[0.227,-0.652],[0.206,-0.651],[0.185,-0.648],[0.165,-0.642],[0.147,-0.63],[0.141,-0.611],[0.151,-0.593],[0.168,-0.58],[0.186,-0.57],[0.204,-0.558],[0.221,-0.545],[0.235,-0.529],[0.248,-0.513],[0.262,-0.496],[0.275,-0.48],[0.289,-0.464],[0.303,-0.448],[0.317,-0.432],[0.331,-0.416],[0.344,-0.4],[0.358,-0.383],[0.372,-0.367],[0.385,-0.351],[0.399,-0.335],[0.414,-0.319],[0.428,-0.304],[0.443,-0.289],[0.458,-0.274],[0.473,-0.259],[0.487,-0.243],[0.502,-0.228],[0.516,-0.212],[0.531,-0.197],[0.545,-0.181],[0.559,-0.166],[0.574,-0.15],[0.588,-0.134],[0.602,-0.118],[0.615,-0.102],[0.629,-0.086],[0.643,-0.07],[0.657,-0.054],[0.671,-0.038],[0.685,-0.022],[0.699,-0.006],[0.713,0.01],[0.728,0.025],[0.742,0.041],[0.756,0.056],[0.771,0.072],[0.784,0.088],[0.798,0.104],[0.812,0.12],[0.826,0.136],[0.84,0.152],[0.854,0.168],[0.868,0.184],[0.881,0.201],[0.895,0.217],[0.908,0.233],[0.923,0.249],[0.941,0.26],[0.962,0.262],[0.981,0.253],[0.998,0.24],[1.013,0.226],[1.028,0.21],[1.043,0.196],[1.06,0.183],[1.077,0.171],[1.095,0.159],[1.112,0.147],[1.13,0.135],[1.148,0.124],[1.166,0.113],[1.185,0.103],[1.204,0.093],[1.223,0.085],[1.243,0.078],[1.263,0.071],[1.283,0.065],[1.304,0.059],[1.324,0.053],[1.345,0.048],[1.365,0.042],[1.386,0.037],[1.406,0.033],[1.427,0.03],[1.449,0.029],[1.47,0.032],[1.491,0.035],[1.512,0.035],[1.533,0.034],[1.554,0.031],[1.575,0.027],[1.596,0.023],[1.617,0.022],[1.638,0.025],[1.659,0.027],[1.68,0.028],[1.701,0.027],[1.722,0.026],[1.743,0.028],[1.764,0.032],[1.785,0.038],[1.805,0.043],[1.826,0.047],[1.847,0.052],[1.867,0.056],[1.888,0.061],[1.909,0.065],[1.929,0.07],[1.95,0.076],[1.97,0.082],[1.991,0.087],[2.011,0.093],[2.031,0.099],[2.051,0.107],[2.07,0.116],[2.089,0.126],[2.109,0.134],[2.128,0.141],[2.148,0.148],[2.168,0.156],[2.188,0.164],[2.207,0.174],[2.225,0.184],[2.243,0.195],[2.261,0.206],[2.279,0.218],[2.297,0.229],[2.315,0.24],[2.333,0.251],[2.351,0.262],[2.368,0.275],[2.385,0.288],[2.402,0.301],[2.419,0.313],[2.437,0.325],[2.455,0.336],[2.473,0.347],[2.49,0.359],[2.507,0.372],[2.524,0.385],[2.54,0.398],[2.556,0.413],[2.571,0.428],[2.586,0.443],[2.601,0.458],[2.615,0.473],[2.629,0.489],[2.643,0.505],[2.657,0.521],[2.67,0.538],[2.683,0.555],[2.696,0.571],[2.71,0.588],[2.723,0.604],[2.737,0.62],[2.75,0.637],[2.764,0.653],[2.779,0.668],[2.793,0.684],[2.807,0.7],[2.818,0.718],[2.826,0.737],[2.834,0.757],[2.842,0.777],[2.852,0.795],[2.863,0.814],[2.874,0.832],[2.883,0.851],[2.89,0.871],[2.896,0.891],[2.902,0.912],[2.906,0.932],[2.909,0.953],[2.915,0.974],[2.923,0.993],[2.933,1.012],[2.942,1.031],[2.95,1.051],[2.955,1.071],[2.958,1.092],[2.96,1.113],[2.959,1.135],[2.956,1.156],[2.951,1.176],[2.945,1.197],[2.942,1.218],[2.943,1.239],[2.946,1.26],[2.946,1.281],[2.943,1.302],[2.937,1.322],[2.932,1.343],[2.929,1.364],[2.924,1.385],[2.917,1.404],[2.907,1.423],[2.898,1.442],[2.888,1.461],[2.879,1.48],[2.87,1.499],[2.859,1.518],[2.847,1.535],[2.834,1.552],[2.82,1.568],[2.807,1.584],[2.794,1.601],[2.781,1.618],[2.767,1.634],[2.754,1.65],[2.742,1.668],[2.739,1.688],[2.752,1.705],[2.77,1.716],[2.789,1.724],[2.809,1.732],[2.829,1.74],[2.848,1.748],[2.867,1.757],[2.887,1.765],[2.907,1.772],[2.927,1.78],[2.947,1.787],[2.967,1.793],[2.988,1.798],[3.008,1.803],[3.028,1.809],[3.048,1.817],[3.069,1.823],[3.089,1.826],[3.11,1.83],[3.131,1.834],[3.152,1.839],[3.172,1.846],[3.192,1.853],[3.212,1.859],[3.233,1.861],[3.254,1.861],[3.276,1.861],[3.297,1.861],[3.318,1.863],[3.339,1.867],[3.359,1.872],[3.38,1.877],[3.401,1.881],[3.422,1.885],[3.443,1.888],[3.464,1.89],[3.485,1.893],[3.506,1.894],[3.527,1.894]]]}];
+const LOGO_BOX_H = 4.4612;
+
+const $ = s => document.querySelector(s);
+const rub = n => n.toLocaleString("ru-RU").replace(/ /g," ") + " ₽";
+let size = null, qty = 1;
+
+["#priceTag","#barPrice","#heroPrice"].forEach(s => $(s).textContent = rub(CONFIG.price));
+const totalLeft = CONFIG.sizes.reduce((a, s) => a + left(s.id), 0);
+$("#leftTag").textContent = totalLeft > 0 ? `Осталось ${totalLeft} из ${CONFIG.total}` : "Sold out";
+if (totalLeft <= 0){ $("#buyBtn").textContent = "Sold out"; }
+$("#tgLink").href = "https://t.me/" + CONFIG.telegram;
+$("#igLink").href = "https://instagram.com/" + CONFIG.instagram;
+$("#tgHandle").textContent = "@" + CONFIG.telegram;
+
+/* gallery */
+document.querySelectorAll(".thumbs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".thumbs button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  const img = $("#mainImg"); img.style.opacity = 0;
+  setTimeout(() => { img.src = b.dataset.src; img.alt = b.dataset.alt; img.style.opacity = 1; }, 200);
+}));
+
+/* sizes */
+const grid = $("#sizeGrid"), chart = $("#chart");
+CONFIG.sizes.forEach(s => {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "size"; b.setAttribute("role","radio"); b.setAttribute("aria-checked","false");
+  const n = left(s.id);
+  b.dataset.size = s.id; b.innerHTML = `<span>${s.id}</span><small class="${n > 0 && n <= 3 ? "low" : ""}">${n > 0 ? "осталось " + n : "нет"}</small>`;
+  b.setAttribute("aria-label", `${s.id}, рост ${s.height}, ${n > 0 ? "осталось " + n : "нет в наличии"}`);
+  if (n <= 0){ b.disabled = true; b.title = "Нет в наличии"; }
+  b.addEventListener("click", () => pickSize(s.id));
+  grid.appendChild(b);
+  const c = document.createElement("div"); c.innerHTML = `<b>${s.id}</b><span>${s.height}</span>`; chart.appendChild(c);
+});
+function pickSize(id){ if (left(id) <= 0) return; size = id; grid.querySelectorAll(".size").forEach(b => b.setAttribute("aria-checked", b.dataset.size === id)); setQty(qty); }
+$("#chartToggle").addEventListener("click", e => { chart.hidden = !chart.hidden; e.currentTarget.setAttribute("aria-expanded", !chart.hidden); });
+function setQty(n){ const cap = Math.min(CONFIG.maxQty, size ? left(size) : CONFIG.maxQty); qty = Math.max(1, Math.min(cap, n)); $("#qty").textContent = qty; updateBuy(); }
+$("#qMinus").onclick = () => setQty(qty - 1);
+$("#qPlus").onclick = () => setQty(qty + 1);
+function updateBuy(){
+  const b = $("#buyBtn");
+  if (!size){ b.disabled = true; b.textContent = totalLeft > 0 ? "Выбери размер" : "Sold out"; return; }
+  b.disabled = false; b.textContent = `Купить · ${size} · ${rub(CONFIG.price * qty)}`;
+}
+
+/* checkout */
+const dlg = $("#checkout"), form = $("#coForm");
+let orderId = "";
+function step(n){ form.classList.toggle("ready", n === 2); $("#coStep").textContent = n === 2 ? "Шаг 2 из 2 · Оплата" : "Шаг 1 из 2 · Данные"; }
+function openCheckout(){
+  if (!size || left(size) < qty) return;
+  orderId = "NTP-002-" + String(Math.floor(1000 + Math.random()*9000));
+  $("#sumLine").textContent = `Размер ${size} · ${qty} шт.`;
+  $("#sumTotal").textContent = $("#payTotal").textContent = rub(CONFIG.price * qty);
+  $("#orderId").textContent = orderId;
+  step(1);
+  try { dlg.showModal(); } catch(e) { dlg.setAttribute("open",""); }
+  document.body.classList.add("locked");
+  setTimeout(() => $("#name").focus(), 60);
+}
+function closeCheckout(){ if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); document.body.classList.remove("locked"); }
+$("#buyBtn").addEventListener("click", openCheckout);
+$("#coClose").addEventListener("click", closeCheckout);
+dlg.addEventListener("close", () => document.body.classList.remove("locked"));
+dlg.addEventListener("click", e => { if (e.target === dlg) closeCheckout(); });
+document.querySelectorAll('input[name="ship"]').forEach(r => r.addEventListener("change", () => { $("#addr").placeholder = $("#shipRu").checked ? "Город и адрес или пункт выдачи" : "Улица, дом, квартира"; }));
+function check(id, ok){ const f = $(id); f.classList.toggle("bad", !ok); f.querySelector(".err").hidden = ok; return ok; }
+function orderText(){
+  const ship = `Доставка ${$("#shipRu").checked ? "по России" : "по Москве"}: ${$("#addr").value.trim()}`;
+  return [`Заказ ${orderId}`, `Футболка «${CONFIG.product}», Drop 002`, `Размер ${size} × ${qty}`, `Сумма: ${rub(CONFIG.price * qty)}`,
+    `Имя: ${$("#name").value.trim()}`, `Контакт: ${$("#contact").value.trim()}`, ship, ``, `Оплатил(а) по СБП, чек прикрепляю.`].join("\n");
+}
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  const a = check("#fName", $("#name").value.trim().length > 1);
+  const b = check("#fContact", $("#contact").value.trim().length > 3);
+  const c = check("#fAddr", $("#addr").value.trim().length > 5);
+  if (!(a && b && c)) return;
+  const sbp = $("#sbpBtn");
+  if (CONFIG.sbpLink){
+    sbp.href = CONFIG.sbpLink; sbp.removeAttribute("aria-disabled"); sbp.style.pointerEvents = ""; sbp.style.opacity = "";
+    $("#sbpNote").textContent = `Откроется оплата в приложении банка. Сумма ${rub(CONFIG.price*qty)}. Если банк позволяет, укажи в комментарии номер ${orderId}.`;
+  } else {
+    sbp.removeAttribute("href"); sbp.setAttribute("aria-disabled","true"); sbp.style.pointerEvents = "none"; sbp.style.opacity = ".25";
+    $("#sbpNote").textContent = "Ссылка на оплату появится к старту продаж.";
+  }
+  $("#tgBtn").href = `https://t.me/${CONFIG.telegram}?text=${encodeURIComponent(orderText())}`;
+  step(2);
+});
+$("#backBtn").addEventListener("click", () => step(1));
+$("#copyOrder").addEventListener("click", () => {
+  const t = orderText(), done = m => $("#copied").textContent = m;
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => done("Скопировано"), () => done("Не удалось, выдели текст вручную"));
+  else done("Не удалось, выдели текст вручную");
+});
+
+/* mobile bar */
+const bar = $("#bar");
+if ("IntersectionObserver" in window){
+  let pastHero = false, buyVisible = false;
+  const upd = () => bar.classList.toggle("show", pastHero && !buyVisible);
+  new IntersectionObserver(([e]) => { pastHero = !e.isIntersecting; upd(); }).observe($(".hero"));
+  new IntersectionObserver(([e]) => { buyVisible = e.isIntersecting; upd(); }).observe($(".buy"));
+}
+
+/* owner-only stock editor: republishes the page with new numbers */
+(async function owner(){
+  if (!window.claude || !claude.use) return;
+  const user = await claude.use("user"); const owner = user ? await user.isOwner().catch(() => false) : false;
+  if (!owner) return;
+  const art = await claude.use("artifact"); if (!art || !SRC) return;
+  const dlgO = $("#ownerDlg"), g = $("#ownGrid"); $("#ownerBtn").hidden = false;
+  CONFIG.sizes.forEach(s => { const l = document.createElement("label"); l.innerHTML = `${s.id}<input type="number" min="0" max="99" inputmode="numeric" id="own-${s.id}" value="${left(s.id)}">`; g.appendChild(l); });
+  $("#ownerBtn").onclick = () => { try { dlgO.showModal(); } catch(e) { dlgO.setAttribute("open",""); } };
+  $("#ownClose").onclick = () => dlgO.close ? dlgO.close() : dlgO.removeAttribute("open");
+  $("#ownSave").onclick = async () => {
+    const next = {}; CONFIG.sizes.forEach(s => { next[s.id] = Math.max(0, Math.min(99, parseInt($("#own-" + s.id).value, 10) || 0)); });
+    const pre = SRC.pre.replace(/(<script id="ntp-stock" type="application\/json">)[^<]*(<\/script>)/, "$1" + JSON.stringify(next) + "$2");
+    const lit = JSON.stringify({skel: SRC.skel, pre, post: SRC.post}).replace(/<\//g, "<\\/").replace(/<!--/g, "<\\u0021--");
+    const doc = SRC.skel + pre + lit + SRC.post + "</body></html>";
+    const msg = $("#ownMsg"); msg.textContent = "Сохраняю…"; $("#ownSave").disabled = true;
+    try { await art.publish(doc); msg.textContent = "Сохранено. Страница обновится."; }
+    catch(e){
+      const c = e && e.code;
+      msg.textContent = c === "conflict" ? "Страница уже обновилась, открой «Остатки» ещё раз." : (c === "not_writer" || c === "not_granted") ? "У этого просмотра нет прав на изменение." : "Не удалось сохранить, попробуй ещё раз.";
+      $("#ownSave").disabled = false;
+    }
+  };
+})();
+
+/* ======== intro: extruded chrome monogram (WebGL) spins, bursts into particles, page opens ======== */
+(function intro(){
+  const box = $("#intro"), glc = $("#gl"), fx = $("#fx"), ctx = fx.getContext("2d");
+  let dead = false, renderer = null;
+  const finish = () => { if (!box.isConnected) return; dead = true; if (renderer){ try { renderer.dispose(); } catch(e){} } box.remove(); document.body.classList.remove("locked"); };
+  document.body.classList.add("locked");
+  box.querySelector(".skip").addEventListener("click", finish);
+  let failSafe = setTimeout(function fs(){ if (document.visibilityState === "hidden"){ failSafe = setTimeout(fs, 2000); return; } if (!dead) finish(); }, 9000);
+
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let W = innerWidth, H = innerHeight;
+  fx.width = W*dpr; fx.height = H*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+  const targetPx = Math.min(W*0.66, 560);
+
+  /* 3D scene: smooth extruded monogram in polished chrome, lit by a virtual photo studio */
+  let mesh = null, scene, camera, has3d = false, normalReady = Promise.resolve();
+  try {
+    if (!window.THREE) throw new Error("no three");
+    renderer = new THREE.WebGLRenderer({canvas: glc, antialias: true, alpha: true, powerPreference: "high-performance"});
+    renderer.setPixelRatio(dpr); renderer.setSize(W, H, false);
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(26, W/H, 0.1, 200); camera.position.set(0, 0, 32);
+
+    // high-contrast studio for chrome: black room, bright ceiling, sharp strip lights, a horizon line
+    const env = new THREE.Scene();
+    env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 48, 24), new THREE.MeshBasicMaterial({color: 0x020203, side: THREE.BackSide})));
+    const lit = k => new THREE.MeshBasicMaterial({color: new THREE.Color(k, k, k*1.03), side: THREE.DoubleSide});
+    const panel = (w, h, x, y, z, k) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), lit(k)); p.position.set(x, y, z); p.lookAt(0, 0, 0); env.add(p); };
+    panel(40, 10, 0, 18, 0, 5);      // ceiling softbox
+    panel(1.4, 26, -9, 0, 18, 12);   // sharp strip, front left
+    panel(1.0, 26, 7, 0, 19, 9);     // sharp strip, front right
+    panel(3, 26, -18, 0, 2, 7);      // side strip left
+    panel(3, 26, 18, 0, -2, 6);      // side strip right
+    panel(30, 6, 0, 8, 20, 2.2);     // upper front fill
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(24, 24, .6, 64, 1, true), lit(4)); band.position.y = -1.5; env.add(band); // horizon line
+    panel(40, 12, 0, -16, 6, .25);   // dim floor
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(env, 0.008).texture; pmrem.dispose();
+
+    const v = p => new THREE.Vector2(p[0], p[1]);
+    const shapes = LOGO_SHAPE.map(sh => { const s = new THREE.Shape(sh.o.map(v)); sh.h.forEach(h => s.holes.push(new THREE.Path(h.map(v)))); return s; });
+    const geo = new THREE.ExtrudeGeometry(shapes, {depth: .5, bevelEnabled: true, bevelThickness: .16, bevelSize: .07, bevelOffset: 0, bevelSegments: 5, curveSegments: 1});
+    // smooth shading across the side walls and bevel (flat caps keep their normal; the normal map domes them)
+    (function smoothNormals(g){
+      const pos = g.attributes.position.array, n = g.attributes.normal.array, cnt = pos.length / 3, map = new Map();
+      const key = i => Math.round(pos[i*3]*1e4) + "," + Math.round(pos[i*3+1]*1e4) + "," + Math.round(pos[i*3+2]*1e4);
+      for (let i = 0; i < cnt; i++){ const k = key(i); let a = map.get(k); if (!a){ a = []; map.set(k, a); } a.push(i); }
+      const out = new Float32Array(n.length);
+      map.forEach(list => {
+        for (const i of list){
+          if (Math.abs(n[i*3+2]) > .995){ out[i*3] = n[i*3]; out[i*3+1] = n[i*3+1]; out[i*3+2] = n[i*3+2]; continue; }
+          let x = 0, y = 0, z = 0;
+          for (const j of list){ if (Math.abs(n[j*3+2]) > .995) continue; const d = n[i*3]*n[j*3] + n[i*3+1]*n[j*3+1] + n[i*3+2]*n[j*3+2]; if (d > .5){ x += n[j*3]; y += n[j*3+1]; z += n[j*3+2]; } }
+          const l = Math.hypot(x, y, z) || 1; out[i*3] = x/l; out[i*3+1] = y/l; out[i*3+2] = z/l;
+        }
+      });
+      g.setAttribute("normal", new THREE.BufferAttribute(out, 3));
+    })(geo);
+    geo.center();
+    const chrome = {color: 0xe9e9eb, metalness: 1, roughness: .07, envMapIntensity: 1.35};
+    const capMat = new THREE.MeshStandardMaterial(chrome), sideMat = new THREE.MeshStandardMaterial(chrome);
+    // domed faces: a baked normal map so each stroke curves like a cast metal badge
+    normalReady = new Promise(res => {
+      new THREE.TextureLoader().load("img/logo-normal.png", tex => {
+        tex.repeat.set(1/10, 1/LOGO_BOX_H); tex.offset.set(.5, .5); tex.anisotropy = 4;
+        capMat.normalMap = tex; capMat.normalScale.set(1, 1); capMat.needsUpdate = true; res();
+      }, undefined, () => res());
+      setTimeout(res, 2500);
+    });
+    mesh = new THREE.Mesh(geo, [capMat, sideMat]); scene.add(mesh);
+    const visW = 2 * camera.position.z * Math.tan(THREE.MathUtils.degToRad(camera.fov/2)) * camera.aspect;
+    mesh.scale.setScalar((targetPx / W) * visW / 10);
+    has3d = true;
+  } catch(e) { has3d = false; }
+
+  const img = new Image();
+  const start = () => { if (document.visibilityState === "hidden"){ document.addEventListener("visibilitychange", start, {once:true}); return; } run(); };
+  img.onload = () => normalReady.then(start); img.onerror = finish; img.src = "img/logo.png";
+
+  function run(){
+    // A: one elegant turn, a glint of light across the metal, then the camera flies through the monogram into the site
+    const ENTER = 1900, GLINT = 750, FLY = 950, REVEAL_AT = ENTER + GLINT + 250;
+    const END = ENTER + GLINT + FLY;
+    const easeInOut = x => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3)/2, easeOut = x => 1 - Math.pow(1-x, 3), easeIn = x => x*x*x;
+    let t = 0, last = null;
+    if (has3d){ glc.style.opacity = 0; try { renderer.compile(scene, camera); renderer.render(scene, camera); } catch(e) {} }
+    // glint: a soft light band, clipped to the monogram's silhouette
+    const lw = targetPx, lh = lw * img.height / img.width;
+    const gc = document.createElement("canvas"); gc.width = Math.round(lw * dpr); gc.height = Math.round(lh * dpr);
+    const g = gc.getContext("2d");
+    function drawGlint(q){
+      g.globalCompositeOperation = "source-over"; g.clearRect(0, 0, gc.width, gc.height);
+      const x = (-.35 + q * 1.7) * gc.width, w = gc.width * .22;
+      const lg = g.createLinearGradient(x - w, 0, x + w, gc.height * .35);
+      lg.addColorStop(0, "rgba(255,255,255,0)"); lg.addColorStop(.5, "rgba(255,255,255,.85)"); lg.addColorStop(1, "rgba(255,255,255,0)");
+      g.fillStyle = lg; g.fillRect(0, 0, gc.width, gc.height);
+      g.globalCompositeOperation = "destination-in"; g.drawImage(img, 0, 0, gc.width, gc.height);
+      ctx.save(); ctx.globalCompositeOperation = "lighter"; ctx.globalAlpha = Math.sin(Math.PI * q) * .9;
+      ctx.drawImage(gc, W/2 - lw/2, H/2 - lh/2, lw, lh); ctx.restore();
+    }
+    function drawFlat(ang, scale, alpha){ // fallback when WebGL is unavailable
+      ctx.save(); ctx.globalAlpha = alpha;
+      ctx.setTransform(dpr*Math.cos(ang)*scale, 0, 0, dpr*scale, W/2*dpr, H/2*dpr); ctx.drawImage(img, -lw/2, -lh/2, lw, lh);
+      ctx.restore(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function frame(now){
+      if (dead) return;
+      if (last === null) last = now; t += Math.min(now - last, 34); last = now;
+      ctx.clearRect(0, 0, W, H);
+      let ang = 0, tiltX = .05, z = 0, camZ = 32, flat = 1;
+      if (t < ENTER){
+        const p = t / ENTER, e = easeInOut(p);
+        ang = -Math.PI * 2 * (1 - e); tiltX = .28 - .23 * e; z = -7 * (1 - easeOut(p));
+        if (has3d) glc.style.opacity = Math.min(1, t / 500);
+      } else if (t < ENTER + GLINT){
+        const q = (t - ENTER) / GLINT;
+        ang = .22 * Math.sin(Math.PI * q);           // a slight sway sweeps the studio lights across the metal
+      } else {
+        const f = Math.min(1, (t - ENTER - GLINT) / FLY);
+        camZ = 32 - 31.2 * easeIn(f); flat = 1 + 14 * easeIn(f);
+      }
+      if (has3d){
+        mesh.rotation.y = ang; mesh.rotation.x = tiltX; mesh.position.z = z; camera.position.z = camZ;
+        renderer.render(scene, camera);
+      } else drawFlat(ang, flat, Math.min(1, t / 500) * (t > ENTER + GLINT ? 1 - Math.min(1, (t - ENTER - GLINT) / FLY) : 1));
+      if (t >= ENTER && t < ENTER + GLINT) drawGlint((t - ENTER) / GLINT);
+      if (t > REVEAL_AT){
+        const r = Math.min(1, (t - REVEAL_AT) / (END - REVEAL_AT));
+        box.style.setProperty("--r", (-240 + easeIn(r) * (Math.hypot(W, H) * .7 + 240)) + "px");
+      }
+      if (t >= END){ clearTimeout(failSafe); finish(); return; }
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+
+</body>
+</html>
