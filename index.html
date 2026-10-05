@@ -261,7 +261,6 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
 <div id="intro" aria-hidden="true">
   <canvas id="gl"></canvas>
   <canvas id="fx" style="z-index:1"></canvas>
-  <button class="skip" type="button">Пропустить</button>
 </div>
 
 <header class="top">
@@ -2987,7 +2986,7 @@ if ("IntersectionObserver" in window){
   let dead = false, renderer = null;
   const finish = () => { if (!box.isConnected) return; dead = true; if (renderer){ try { renderer.dispose(); } catch(e){} } box.remove(); document.body.classList.remove("locked"); };
   document.body.classList.add("locked");
-  box.querySelector(".skip").addEventListener("click", finish);
+  
   let failSafe = setTimeout(function fs(){ if (document.visibilityState === "hidden"){ failSafe = setTimeout(fs, 2000); return; } if (!dead) finish(); }, 9000);
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
