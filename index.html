@@ -400,7 +400,7 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
       <div class="faq">
         <details><summary>Как выбрать размер?</summary><p>Ориентируйся на рост: S — до 150 см, M — 150–165, L — 165–175, XL — 175–185. Футболка бокс-кроя: широкая и укороченная. Если сомневаешься, напиши нам перед покупкой.</p></details>
         <details><summary>Из чего сделана футболка?</summary><p>Френч терри плотностью 240 г/м². Плотная ткань хорошо держит бокс-силуэт.</p></details>
-        <details><summary>Как получить заказ?</summary><p>Доставка по Москве или по России. Адрес указываешь при оформлении, сроки и стоимость доставки обсудим в Telegram после оплаты.</p></details>
+        <details><summary>Как получить заказ?</summary><p>По России — Яндекс Доставкой в пункт выдачи, 5–10 дней, доставку (~300–500 ₽) оплачиваешь при получении. По Москве — курьером. Адрес указываешь при оформлении, детали подтвердим в Telegram.</p></details>
         <details><summary>Сколько всего футболок?</summary><p>Каждый дроп — эксклюзив. Drop 002 вышел тиражом 25 штук, остаток по каждому размеру виден при выборе.</p></details>
       </div>
     </div>
@@ -442,7 +442,7 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
       <div class="field"><span class="lab">Доставка</span>
         <div class="seg">
           <label><input type="radio" name="ship" id="shipMsk" value="msk" checked>По Москве<small>курьером</small></label>
-          <label><input type="radio" name="ship" id="shipRu" value="ru">По России<small>в пункт выдачи или курьером</small></label>
+          <label><input type="radio" name="ship" id="shipRu" value="ru">По России<small>Яндекс, пункт выдачи · 5–10 дней</small></label>
         </div>
       </div>
       <div class="field" id="fAddr"><label for="addr">Адрес доставки</label><textarea id="addr" name="addr" rows="2" placeholder="Улица, дом, квартира"></textarea><span class="err" hidden>Укажи, куда отправить</span></div>
@@ -2877,7 +2877,7 @@ $("#buyBtn").addEventListener("click", openCheckout);
 $("#coClose").addEventListener("click", closeCheckout);
 dlg.addEventListener("close", () => document.body.classList.remove("locked"));
 dlg.addEventListener("click", e => { if (e.target === dlg) closeCheckout(); });
-document.querySelectorAll('input[name="ship"]').forEach(r => r.addEventListener("change", () => { $("#addr").placeholder = $("#shipRu").checked ? "Город и адрес или пункт выдачи" : "Улица, дом, квартира"; }));
+document.querySelectorAll('input[name="ship"]').forEach(r => r.addEventListener("change", () => { $("#addr").placeholder = $("#shipRu").checked ? "Город и адрес пункта выдачи Яндекса" : "Улица, дом, квартира"; }));
 function check(id, ok){ const f = $(id); f.classList.toggle("bad", !ok); f.querySelector(".err").hidden = ok; return ok; }
 function orderText(){
   const ship = `Доставка ${$("#shipRu").checked ? "по России" : "по Москве"}: ${$("#addr").value.trim()}`;
