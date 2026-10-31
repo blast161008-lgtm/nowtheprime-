@@ -132,10 +132,15 @@ p{margin:0}
 .size:hover:not([disabled]){border-color:var(--fg)}
 .size[aria-checked="true"]{background:var(--fg);border-color:var(--fg);color:var(--bg)}
 .size[disabled]{cursor:not-allowed;color:#bdbab4;border-color:var(--line);background:linear-gradient(to top right,transparent calc(50% - .5px),var(--line-2) 50%,transparent calc(50% + .5px))}
-.chart{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-block:1px solid var(--line);font-size:12px}
-.chart div{padding:12px 6px;display:grid;gap:4px;text-align:center}
-.chart b{font-weight:400;letter-spacing:.14em}
-.chart span{color:var(--muted)}
+.chart{display:grid;gap:14px;border-block:1px solid var(--line);padding-block:16px;font-size:12px}
+.chart img{display:block;width:100%;max-width:340px;height:auto;margin:0 auto;mix-blend-mode:multiply}
+.chart table{width:100%;border-collapse:collapse;table-layout:fixed}
+.chart th,.chart td{padding:9px 2px;text-align:center;border-bottom:1px solid var(--line);font-weight:400}
+.chart thead th{letter-spacing:.14em;color:var(--fg)}
+.chart tbody th{text-align:left;color:var(--muted);font-size:11px;white-space:nowrap}
+.chart thead th:first-child{width:27%;text-align:left}
+.chart tbody th i{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;background:var(--fg);color:var(--bg);font-style:normal;font-size:9px;margin-right:6px}
+.chart small{color:var(--muted);text-align:center;font-size:11px}
 .qty{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .stepper{display:inline-flex;border:1px solid var(--line-2)}
 .stepper button{width:44px;height:44px;background:none;border:0;cursor:pointer;font-size:16px;color:var(--muted)}
@@ -340,7 +345,7 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
             <div class="row"><span class="label">Размер</span><button type="button" class="link" id="chartToggle" aria-expanded="false" aria-controls="chart">Размерная сетка</button></div>
             <div class="size-grid" role="radiogroup" aria-label="Размер" id="sizeGrid"></div>
             <div class="chart" id="chart" hidden></div>
-            <p class="note">Бокс-крой: широкая и чуть укороченная, сетка по росту. Сомневаешься в размере — напиши, подскажем.</p>
+            <p class="note">Бокс-крой: широкая и чуть укороченная. Сравни замеры со своей любимой футболкой — сомневаешься в размере, напиши, подскажем.</p>
           </div>
 
           <div class="qty">
@@ -2807,11 +2812,12 @@ const CONFIG = {
   maxQty: 3,
   total: 25,                   // тираж
   sizes: [                     // остатки — в блоке ntp-stock (кнопка «Остатки» на сайте)
-    {id:"S",  height:"до 150 см"},
-    {id:"M",  height:"150–165 см"},
-    {id:"L",  height:"165–175 см"},
-    {id:"XL", height:"175–185 см"},
-    {id:"XXL",height:"185–195 см"}
+    // len — длина, wid — ширина, sl — рукав (см, футболка на ровной поверхности)
+    {id:"S",  height:"до 150 см",  len:55, wid:54, sl:16},
+    {id:"M",  height:"150–165 см", len:60, wid:57, sl:19},
+    {id:"L",  height:"165–175 см", len:66, wid:60, sl:21},
+    {id:"XL", height:"175–185 см", len:69, wid:62, sl:21},
+    {id:"XXL",height:"185–195 см", len:75, wid:66, sl:24}
   ]
 };
 /* ======================================== */
@@ -2851,8 +2857,15 @@ CONFIG.sizes.forEach(s => {
   if (n <= 0){ b.disabled = true; b.title = "Нет в наличии"; }
   b.addEventListener("click", () => pickSize(s.id));
   grid.appendChild(b);
-  const c = document.createElement("div"); c.innerHTML = `<b>${s.id}</b><span>${s.height}</span>`; chart.appendChild(c);
 });
+(() => {
+  const S = CONFIG.sizes, row = (h, k) => `<tr><th scope="row">${h}</th>${S.map(s => `<td>${s[k]}</td>`).join("")}</tr>`;
+  chart.innerHTML = `<img src="img/size-scheme.jpg" alt="Схема замеров: 1 — длина, 2 — ширина, 3 — рукав" loading="lazy" width="850" height="585">
+  <table><thead><tr><th scope="col"><span class="label">см</span></th>${S.map(s => `<th scope="col">${s.id}</th>`).join("")}</tr></thead>
+  <tbody>${row("<i>1</i>Длина","len")}${row("<i>2</i>Ширина","wid")}${row("<i>3</i>Рукав","sl")}${row("Рост","height")}</tbody></table>
+  <small>Замеры в сантиметрах, футболка на ровной поверхности</small>`;
+  chart.querySelectorAll("tbody tr:last-child td").forEach(td => td.textContent = td.textContent.replace(" см",""));
+})();
 function pickSize(id){ if (left(id) <= 0) return; size = id; grid.querySelectorAll(".size").forEach(b => b.setAttribute("aria-checked", b.dataset.size === id)); setQty(qty); }
 $("#chartToggle").addEventListener("click", e => { chart.hidden = !chart.hidden; e.currentTarget.setAttribute("aria-expanded", !chart.hidden); });
 function setQty(n){ const cap = Math.min(CONFIG.maxQty, size ? left(size) : CONFIG.maxQty); qty = Math.max(1, Math.min(cap, n)); $("#qty").textContent = qty; updateBuy(); }
