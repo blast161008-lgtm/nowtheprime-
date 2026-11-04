@@ -85,7 +85,7 @@ sent = []
 bot.api = lambda method, **kw: sent.append((method, kw)) or {"username": "test"}
 bot.fetch_channel = lambda name: tg_parser.fetch_channel(name, fetch=fake_fetch, pause=0)
 os.environ["AI_API_KEY"] = "fake"
-ai.ask = lambda prompt, max_tokens=0: f"[ИИ-ответ на промпт длиной {len(prompt)} знаков]"
+ai.ask = lambda prompt, max_tokens=0, **kw: f"[ИИ-ответ на промпт длиной {len(prompt)} знаков]"
 
 
 def wait():

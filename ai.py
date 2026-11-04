@@ -36,10 +36,14 @@ def _post(url, headers, payload, timeout=120):
         return json.loads(r.read().decode())
 
 
-def ask(prompt, max_tokens: int = 4000) -> str:
-    """AI_MODEL может быть списком через запятую: если модель недоступна, пробуем следующую."""
+def ask(prompt, max_tokens: int = 4000, heavy: bool = False, tag: str = "") -> str:
+    """AI_MODEL — модель для обычных задач, AI_MODEL_HEAVY — для тяжёлых (видео).
+    Можно списком через запятую: если модель недоступна, пробуем следующую."""
     default = "claude-sonnet-5-5" if os.getenv("AI_PROVIDER", "anthropic").lower() == "anthropic" else "gpt-4o-mini"
-    models = [m.strip() for m in os.getenv("AI_MODEL", default).split(",") if m.strip()]
+    env = (os.getenv("AI_MODEL_HEAVY") if heavy else None) or os.getenv("AI_MODEL", default)
+    models = [m.strip() for m in env.split(",") if m.strip()]
+    global _tag
+    _tag = tag
     last = None
     for model in models:
         try:
@@ -70,6 +74,16 @@ def _content(prompt, provider):
     return out
 
 
+_tag = ""
+
+
+def _log_usage(model, usage):
+    if usage:
+        inp = usage.get("input_tokens") or usage.get("prompt_tokens") or 0
+        out = usage.get("output_tokens") or usage.get("completion_tokens") or 0
+        log.info("AI usage task=%s model=%s in=%s out=%s", _tag, model, inp, out)
+
+
 def _ask_one(prompt, max_tokens: int, model: str) -> str:
     provider = os.getenv("AI_PROVIDER", "anthropic").lower()
     key = os.environ["AI_API_KEY"]
@@ -85,6 +99,7 @@ def _ask_one(prompt, max_tokens: int, model: str) -> str:
                 "messages": [{"role": "user", "content": prompt}],
             },
         )
+        _log_usage(model, data.get("usage"))
         return "".join(b.get("text", "") for b in data.get("content", [])).strip()
 
     base = os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
@@ -97,6 +112,7 @@ def _ask_one(prompt, max_tokens: int, model: str) -> str:
             "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
         },
     )
+    _log_usage(model, data.get("usage"))
     return data["choices"][0]["message"]["content"].strip()
 
 

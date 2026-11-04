@@ -111,6 +111,23 @@ def take_quota(uid: int) -> bool:
         return True
 
 
+ai_cache: dict[tuple, tuple[float, str]] = {}
+AI_CACHE_TTL = 6 * 3600
+
+
+def cached_ai(key: tuple, make_prompt, **kw) -> str:
+    """Один и тот же разбор в течение 6 часов не оплачиваем повторно."""
+    with lock:
+        hit = ai_cache.get(key)
+    if hit and time.time() - hit[0] < AI_CACHE_TTL:
+        log.info("AI cache hit %s", key)
+        return hit[1]
+    text = ai.ask(make_prompt(), tag=key[0], **kw)
+    with lock:
+        ai_cache[key] = (time.time(), text)
+    return text
+
+
 def get_channel(name: str) -> dict:
     with lock:
         hit = cache.get(name)
@@ -190,7 +207,7 @@ def job_report(chat_id, user, name):
         return
     send(chat_id, stats_text(a))
     typing(chat_id)
-    text = ai.ask(ai.report_prompt(compact_for_ai(a)))
+    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(compact_for_ai(a)))
     send(chat_id, text, channel_keyboard(name))
 
 
@@ -224,7 +241,8 @@ def job_compare(chat_id, user, mine, rivals):
     if not ai.enabled():
         return
     typing(chat_id)
-    text = ai.ask(ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=5000)
+    key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
+    text = cached_ai(key, lambda: ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=5000)
     send(chat_id, text, [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]])
 
 
@@ -262,7 +280,7 @@ def job_videos(chat_id, user, name):
     parts.append(ai.video_outro())
     track(user, "video")
     typing(chat_id)
-    send(chat_id, ai.ask(parts), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
+    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
 
 
 past_ideas: dict[tuple[int, str], list[str]] = {}
@@ -281,7 +299,7 @@ def job_ideas(chat_id, user, name, focus=None):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     previous = "\n".join(prev)[-6000:] or None
-    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous))
+    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous), tag="ideas")
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
     past_ideas[key] = prev + (titles or [text[:1500]])
     track(user, "ideas")
@@ -306,7 +324,7 @@ def job_plan(chat_id, user, name):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     track(user, "plan")
-    send(chat_id, ai.ask(ai.plan_prompt(compact_for_ai(a))))
+    send(chat_id, cached_ai(("plan", name.lower()), lambda: ai.plan_prompt(compact_for_ai(a))))
 
 
 # ---------------- роутинг ----------------
