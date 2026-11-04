@@ -38,6 +38,9 @@ MAX_RIVALS = 3
 HOME_CHANGE_DAYS = int(os.getenv("HOME_CHANGE_DAYS", "30"))
 PRICE = int(os.getenv("PRICE", "299"))
 SUB_DAYS = 30
+YEAR_MONTHS_PAID = 10  # год = цена 10 месяцев
+PERIODS = {"m": (SUB_DAYS, 1, "месяц"), "y": (365, YEAR_MONTHS_PAID, "год")}
+BOT_USERNAME = os.getenv("BOT_USERNAME", "Improvelab_bot")
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
 PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
 FREE = {"report": 1, "ideas": 1, "reel": 1, "insta": 1}  # бесплатные ИИ-запросы на всё время
@@ -110,8 +113,8 @@ def typing(chat_id: int):
 
 # ---------------- данные пользователей ----------------
 
-def track(user: dict, event: str):
-    storage.track(user, event, time.time())
+def track(user: dict, event: str) -> bool:
+    return storage.track(user, event, time.time())
 
 
 def take_quota(uid: int) -> bool:
@@ -177,6 +180,7 @@ START = """Привет! Я ИИ-продюсер 🎬
 • «📊 Разбор Inst / TikTok» — пришли скриншоты статистики, сделаю разбор и 10 идей роликов.
 
 Первый канал, который пришлёшь, станет твоим: разбор, идеи, план и видео — для него. Сравниваться можно с любыми каналами.
+🎁 /invite — приведи друга и получи месяц бесплатно.
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
 
 HELP = START
@@ -265,11 +269,15 @@ def allow(chat_id, user, kind) -> bool:
     return False
 
 
-pending_pay: set[int] = set()
+pending_pay: dict[int, str] = {}  # uid -> период ("m" / "y")
 
 
-def pay_code(uid) -> str:
-    return f"IL{str(uid)[-5:]}"
+def pay_code(uid, period="m") -> str:
+    return f"IL{str(uid)[-5:]}" + ("Y" if period == "y" else "")
+
+
+def period_price(period) -> int:
+    return PRICE * PERIODS[period][1]
 
 
 def show_pay(chat_id, user):
@@ -279,46 +287,85 @@ def show_pay(chat_id, user):
     until = storage.sub_until(user["id"])
     extra = ""
     if until > time.time():
-        extra = f"Подписка уже активна до {time.strftime('%d.%m', time.localtime(until))} — оплата продлит её ещё на {SUB_DAYS} дней.\n\n"
+        extra = f"Подписка уже активна до {time.strftime('%d.%m', time.localtime(until))} — оплата продлит её.\n\n"
     send(
         chat_id,
-        extra + f"Подписка — {PRICE} ₽ на {SUB_DAYS} дней.\n\n"
-        f"1. Переведи {PRICE} ₽ по СБП: {PAY_DETAILS}\n"
-        f"2. В комментарии к переводу напиши код: {pay_code(user['id'])}\n"
+        extra + "Выбери срок подписки:\n\n"
+        f"• Месяц — {PRICE} ₽\n"
+        f"• Год — {period_price('y')} ₽ (12 месяцев по цене {YEAR_MONTHS_PAID}, 2 в подарок 🎁)",
+        [[{"text": f"Месяц — {PRICE} ₽", "callback_data": "pay_m"}],
+         [{"text": f"Год — {period_price('y')} ₽ 🎁", "callback_data": "pay_y"}]],
+    )
+
+
+def show_pay_details(chat_id, user, period):
+    days, _, label = PERIODS[period]
+    amount = period_price(period)
+    send(
+        chat_id,
+        f"Подписка на {label} — {amount} ₽.\n\n"
+        f"1. Переведи {amount} ₽ по СБП: {PAY_DETAILS}\n"
+        f"2. В комментарии к переводу напиши код: {pay_code(user['id'], period)}\n"
         "3. Нажми «Я оплатил» и пришли скриншот перевода.\n\n"
         "Подписку включаю вручную после проверки — обычно в течение пары часов.",
-        [[{"text": "✅ Я оплатил", "callback_data": "paid"}]],
+        [[{"text": "✅ Я оплатил", "callback_data": f"paid_{period}"}]],
     )
 
 
 def got_payment_proof(msg, user):
     """Пользователь прислал скриншот — пересылаем админам с кнопками."""
-    pending_pay.discard(user["id"])
     uid = user["id"]
+    period = pending_pay.pop(uid, "m")
     who = "@" + user["username"] if user.get("username") else user.get("first_name", "")
-    info = f"💳 Оплата подписки\nОт: {who} (id {uid})\nКод: {pay_code(uid)}\nСумма: {PRICE} ₽\nКанал: @{home_of(user) or '—'}"
-    kb = [[{"text": "✅ Подтвердить", "callback_data": f"ok:{uid}"}, {"text": "❌ Отклонить", "callback_data": f"no:{uid}"}]]
+    ref = storage.ref_of(uid)
+    info = (f"💳 Оплата подписки ({PERIODS[period][2]})\nОт: {who} (id {uid})\nКод: {pay_code(uid, period)}\n"
+            f"Сумма: {period_price(period)} ₽\nКанал: @{home_of(user) or '—'}" + (f"\nПригласил: {ref}" if ref else ""))
+    kb = [[{"text": "✅ Подтвердить", "callback_data": f"ok:{uid}:{period}"},
+           {"text": "❌ Отклонить", "callback_data": f"no:{uid}:{period}"}]]
     for admin in ADMIN_IDS:
         api("forwardMessage", chat_id=admin, from_chat_id=msg["chat"]["id"], message_id=msg["message_id"])
         send(admin, info, kb)
     send(msg["chat"]["id"], "Спасибо! Проверяю перевод и включу подписку — пришлю сообщение 🙌")
 
 
+def extend_sub(uid, days) -> str:
+    until = max(storage.sub_until(uid), time.time()) + days * 86400
+    storage.set_sub(uid, until)
+    return time.strftime("%d.%m.%Y", time.localtime(until))
+
+
 def admin_decide(chat_id, admin, data):
     if admin["id"] not in ADMIN_IDS:
         return
-    ok = data.startswith("ok:")
-    uid = int(data.split(":", 1)[1])
+    parts = data.split(":")
+    ok, uid = parts[0] == "ok", int(parts[1])
+    period = parts[2] if len(parts) > 2 and parts[2] in PERIODS else "m"
     if ok:
-        until = max(storage.sub_until(uid), time.time()) + SUB_DAYS * 86400
-        storage.set_sub(uid, until)
-        d = time.strftime("%d.%m.%Y", time.localtime(until))
-        send(uid, f"🔥 Подписка активна до {d}. Всё открыто — жми кнопки или пришли свой канал.", channel_keyboard(home_of({"id": uid}) or "") if home_of({"id": uid}) else None)
-        send(chat_id, f"✅ Подписка для {uid} включена до {d}. Не забудь чек в «Мой налог».")
+        d = extend_sub(uid, PERIODS[period][0])
+        home = home_of({"id": uid})
+        send(uid, f"🔥 Подписка активна до {d}. Всё открыто — жми кнопки или пришли свой канал.",
+             channel_keyboard(home) if home else None)
+        send(chat_id, f"✅ Подписка для {uid} ({PERIODS[period][2]}) включена до {d}. Не забудь чек в «Мой налог».")
+        # рефералка: пригласившему +30 дней за первую оплату друга
+        ref = storage.ref_of(uid)
+        if ref and storage.ref_rewarded(uid):
+            rd = extend_sub(int(ref), SUB_DAYS)
+            send(int(ref), f"🎁 Твой друг оформил подписку — дарю тебе +{SUB_DAYS} дней! Подписка активна до {rd}.")
+            send(chat_id, f"🎁 Пригласившему ({ref}) начислено +{SUB_DAYS} дней.")
     else:
         send(uid, "Не нашёл твой перевод 😕 Проверь сумму и код в комментарии и пришли скриншот ещё раз — или напиши, разберёмся.",
              [[{"text": "💳 Оплатить", "callback_data": "pay"}]])
         send(chat_id, f"❌ Оплата {uid} отклонена.")
+
+
+def show_invite(chat_id, user):
+    uid = user["id"]
+    link = f"https://t.me/{BOT_USERNAME}?start=ref_{uid}"
+    n = len(storage.invited(uid))
+    send(chat_id,
+         f"🎁 Приведи друга — получи месяц бесплатно.\n\nТвоя ссылка:\n{link}\n\n"
+         f"Когда друг по ней придёт и оформит подписку, тебе добавится +{SUB_DAYS} дней.\n"
+         f"Ты уже пригласил: {n}")
 
 
 # ---------------- свой канал ----------------
@@ -793,7 +840,11 @@ def handle_message(msg: dict):
     cmd = text.split()[0].split("@")[0].lower() if text.startswith("/") else ""
 
     if cmd == "/start":
-        track(user, "start")
+        payload = text.split(maxsplit=1)[1] if len(text.split()) > 1 else ""
+        is_new = track(user, "start")
+        if is_new and payload.startswith("ref_") and payload[4:].isdigit():
+            if storage.set_ref(user["id"], payload[4:]):
+                log.info("referral: %s invited by %s", user["id"], payload[4:])
         mine = home_of(user)
         if mine:
             send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine) + MENU_INSTA)
@@ -802,6 +853,9 @@ def handle_message(msg: dict):
         return
     if cmd == "/help":
         send(chat_id, HELP)
+        return
+    if cmd == "/invite":
+        show_invite(chat_id, user)
         return
     if cmd == "/reel":
         send(chat_id, HELP_REEL)
@@ -926,9 +980,13 @@ def handle_callback(cb: dict):
         send(chat_id, HELP_INSTA)
     elif data == "pay":
         show_pay(chat_id, user)
-    elif data == "paid":
-        pending_pay.add(user["id"])
+    elif data in ("pay_m", "pay_y"):
+        show_pay_details(chat_id, user, data[-1])
+    elif data.startswith("paid"):
+        pending_pay[user["id"]] = "y" if data == "paid_y" else "m"
         send(chat_id, "Пришли скриншот перевода одним сообщением 📸")
+    elif data == "invite":
+        show_invite(chat_id, user)
     elif data.startswith(("ok:", "no:")):
         admin_decide(chat_id, user, data)
     elif data.startswith("cmpw:"):
@@ -967,6 +1025,7 @@ def set_commands():
             {"command": "insta", "description": "Разбор Inst / TikTok по скриншотам"},
             {"command": "mychannel", "description": "Мой канал"},
             {"command": "sub", "description": "Подписка"},
+            {"command": "invite", "description": "Пригласить друга — месяц в подарок"},
         ],
     )
 
@@ -1037,6 +1096,8 @@ def main():
     if not TOKEN:
         raise SystemExit("Нет TELEGRAM_BOT_TOKEN")
     me = api("getMe")
+    global BOT_USERNAME
+    BOT_USERNAME = (me or {}).get("username") or BOT_USERNAME
     log.info("bot @%s, AI %s", (me or {}).get("username"), "on" if ai.enabled() else "off")
     set_commands()
     storage.db()

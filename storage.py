@@ -186,6 +186,31 @@ def first_time(uid, task: str, key: str, ts: float, days: int = 7) -> bool:
     return ts - last > days * 86400
 
 
+def set_ref(uid, ref) -> bool:
+    """Кто пригласил пользователя (только один раз и не сам себя)."""
+    if str(uid) == str(ref) or _safe("GET", f"u:{uid}:ref"):
+        return False
+    _safe("SET", f"u:{uid}:ref", ref)
+    _safe("SADD", f"u:{ref}:invited", uid)
+    return True
+
+
+def ref_of(uid):
+    return _safe("GET", f"u:{uid}:ref")
+
+
+def invited(uid) -> list:
+    return _safe("SMEMBERS", f"u:{uid}:invited", default=[]) or []
+
+
+def ref_rewarded(uid) -> bool:
+    """Отмечает, что за оплату пользователя уже наградили пригласившего. True — если раньше не награждали."""
+    if _safe("GET", f"u:{uid}:ref_paid"):
+        return False
+    _safe("SET", f"u:{uid}:ref_paid", 1)
+    return True
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
