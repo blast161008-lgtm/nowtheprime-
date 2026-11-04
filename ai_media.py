@@ -16,30 +16,75 @@ def gemini_enabled() -> bool:
     return bool(os.getenv("AI_API_KEY")) and os.getenv("VIDEO_AI", "gemini").lower() == "gemini"
 
 
-def ask_gemini_video(video: bytes, prompt: str, max_tokens: int = 6000) -> str:
-    """Отдаёт ролик целиком (картинка + звук) модели Gemini."""
+_VARIANTS = ["full", "plain", "camel"]
+_preferred = None
+
+
+def _payload(variant: str, video_b64: str, prompt: str, max_tokens: int) -> dict:
+    if variant == "camel":
+        media = {"inlineData": {"mimeType": "video/mp4", "data": video_b64}}
+    else:
+        media = {"inline_data": {"mime_type": "video/mp4", "data": video_b64}}
+    if variant == "full":
+        return {
+            "systemInstruction": {"parts": [{"text": SYSTEM}]},
+            "contents": [{"role": "user", "parts": [media, {"text": prompt}]}],
+            "generationConfig": {"maxOutputTokens": max_tokens, "thinkingConfig": {"thinkingBudget": 1024}},
+        }
+    return {
+        "contents": [{"role": "user", "parts": [media, {"text": SYSTEM + "\n\n" + prompt}]}],
+        "generationConfig": {"maxOutputTokens": max_tokens},
+    }
+
+
+def _call(variant, video, prompt, max_tokens):
     base = os.getenv("GEMINI_BASE_URL") or os.getenv("AI_BASE_URL", "https://generativelanguage.googleapis.com")
     model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     data = _post(
         f"{base.rstrip('/')}/v1beta/models/{model}:generateContent",
         {"x-goog-api-key": os.environ["AI_API_KEY"]},
-        {
-            "systemInstruction": {"parts": [{"text": SYSTEM}]},
-            "contents": [{"role": "user", "parts": [
-                {"inline_data": {"mime_type": "video/mp4", "data": base64.b64encode(video).decode()}},
-                {"text": prompt},
-            ]}],
-            "generationConfig": {"maxOutputTokens": max_tokens, "thinkingConfig": {"thinkingBudget": 1024}},
-        },
+        _payload(variant, base64.b64encode(video).decode(), prompt, max_tokens),
         timeout=240,
     )
     u = data.get("usageMetadata") or {}
-    log.info("AI usage task=reel model=%s in=%s out=%s", model, u.get("promptTokenCount"), u.get("candidatesTokenCount"))
+    log.info("AI usage task=reel model=%s variant=%s in=%s out=%s", model, variant,
+             u.get("promptTokenCount"), u.get("candidatesTokenCount"))
     parts = (data.get("candidates") or [{}])[0].get("content", {}).get("parts", [])
     text = "".join(p.get("text", "") for p in parts if not p.get("thought")).strip()
     if not text:
         raise RuntimeError("gemini: пустой ответ " + json.dumps(data)[:300])
     return text
+
+
+def ask_gemini_video(video: bytes, prompt: str, max_tokens: int = 6000) -> str:
+    """Отдаёт ролик целиком (картинка + звук) модели Gemini. Пробует форматы запроса, запоминает рабочий."""
+    global _preferred
+    order = ([_preferred] if _preferred else []) + [v for v in _VARIANTS if v != _preferred]
+    last = None
+    for v in order:
+        try:
+            text = _call(v, video, prompt, max_tokens)
+            _preferred = v
+            return text
+        except urllib.error.HTTPError as e:
+            body = e.read()[:600].decode(errors="ignore")
+            log.warning("gemini variant=%s HTTP %s: %s", v, e.code, body)
+            last = RuntimeError(f"gemini HTTP {e.code}: {body[:200]}")
+            if e.code not in (400, 422):
+                break
+    raise last or RuntimeError("gemini failed")
+
+
+def selftest(make_clip):
+    """При старте: проверяем, принимает ли прокси видео для Gemini (1-секундный ролик, копейки)."""
+    if not gemini_enabled():
+        return
+    try:
+        clip = make_clip()
+        text = ask_gemini_video(clip, "Что на видео и есть ли звук? Ответь одной короткой фразой.", max_tokens=200)
+        log.info("gemini selftest OK (%s): %s", _preferred, text[:120])
+    except Exception as e:
+        log.warning("gemini selftest FAILED: %s", e)
 
 
 def _multipart(fields: dict, file_bytes: bytes, filename: str, ctype: str):
@@ -50,6 +95,22 @@ def _multipart(fields: dict, file_bytes: bytes, filename: str, ctype: str):
     body += (f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{filename}"\r\n'
              f"Content-Type: {ctype}\r\n\r\n").encode() + file_bytes + f"\r\n--{boundary}--\r\n".encode()
     return body, f"multipart/form-data; boundary={boundary}"
+
+
+_JUNK = ("подпиш", "продолжение следует", "субтитр", "редактор субтитров", "спасибо за просмотр",
+         "ставьте лайк", "dimatorzok", "amara.org", "всем пока")
+
+
+def _hallucination(seg: dict) -> bool:
+    """Whisper на музыке без голоса выдумывает фразы вроде «Подпишись» — отсеиваем."""
+    t = seg.get("text", "").strip().lower()
+    if not t or any(j in t for j in _JUNK):
+        return True
+    if seg.get("no_speech_prob", 0) > 0.5:
+        return True
+    if seg.get("avg_logprob", 0) < -1.0:
+        return True
+    return False
 
 
 def transcribe(mp3: bytes) -> str | None:
@@ -73,9 +134,11 @@ def transcribe(mp3: bytes) -> str | None:
             log.warning("stt %s failed: %s", model, e)
             continue
         segs = d.get("segments")
-        if segs:
-            return "\n".join(f"[{s['start']:.1f}–{s['end']:.1f} с] {s['text'].strip()}" for s in segs if s.get("text"))
-        return (d.get("text") or "").strip() or None
+        if segs is not None:
+            good = [g for g in segs if g.get("text") and not _hallucination(g)]
+            return "\n".join(f"[{g['start']:.1f}–{g['end']:.1f} с] {g['text'].strip()}" for g in good) or None
+        t = (d.get("text") or "").strip()
+        return None if not t or _hallucination({"text": t}) else t
     return None
 
 

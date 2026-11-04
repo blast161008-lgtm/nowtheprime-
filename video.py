@@ -224,3 +224,19 @@ def audio_facts(data: bytes) -> dict:
             with open(mp3, "rb") as f:
                 out["mp3"] = f.read()
     return out
+
+
+def test_clip() -> bytes:
+    """1-секундный ролик со звуком для самопроверки."""
+    ff = ffmpeg_path()
+    r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=320x568:d=1:r=12",
+                        "-f", "lavfi", "-i", "sine=f=440:d=1", "-shortest", "-c:v", "libx264", "-preset", "ultrafast",
+                        "-c:a", "aac", "-b:a", "32k", "-movflags", "+faststart", "-f", "mp4", "pipe:1"],
+                       capture_output=True, timeout=60)
+    if r.returncode or not r.stdout:
+        # mp4 в pipe требует frag — запасной вариант
+        r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "testsrc=s=320x568:d=1:r=12",
+                            "-f", "lavfi", "-i", "sine=f=440:d=1", "-shortest", "-c:v", "libx264", "-preset", "ultrafast",
+                            "-c:a", "aac", "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"],
+                           capture_output=True, timeout=60)
+    return r.stdout

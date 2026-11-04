@@ -987,6 +987,7 @@ def main():
     set_commands()
     storage.db()
     video.warmup()
+    threading.Thread(target=ai_media.selftest, args=(video.test_clip,), daemon=True).start()
     base = os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_URL")
     if base:
         run_webhook(base, int(os.getenv("PORT", "10000")))
