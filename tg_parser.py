@@ -188,10 +188,18 @@ def fetch_channel(username: str, days: int = 180, max_posts: int = 1000, fetch=_
     return info
 
 
-def download(url: str, limit: int = 60_000_000, timeout: int = 60) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read(limit + 1)
+def download(url: str, limit: int = 60_000_000, timeout: int = 60, retries: int = 2) -> bytes:
+    """Скачивает файл; CDN Telegram иногда отвечает 500 — повторяем."""
+    for attempt in range(retries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": UA})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                data = r.read(limit + 1)
+            break
+        except urllib.error.HTTPError as e:
+            if e.code < 500 or attempt == retries:
+                raise
+            time.sleep(1.5 * (attempt + 1))
     if len(data) > limit:
         raise ValueError("file too big")
     return data
