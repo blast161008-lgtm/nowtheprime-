@@ -113,30 +113,54 @@ def fmt_num(n) -> str:
     return str(n)
 
 
+def plural(n, one, few, many) -> str:
+    n = abs(int(n))
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def _diff(x: float) -> str:
+    pct = round((x - 1) * 100)
+    return f"на {pct}% больше" if pct > 0 else f"на {-pct}% меньше"
+
+
 def stats_text(a: dict) -> str:
     """Короткая сводка цифрами — отправляется пользователю до/без ИИ."""
     lines = [f"📊 {a['title'] or '@' + a['username']} (@{a['username']})"]
     if a["subscribers"]:
         lines.append(f"Подписчиков: {fmt_num(a['subscribers'])}")
+    n = a["posts_analyzed"]
     lines.append(
-        f"Разобрал {a['posts_analyzed']} постов за {a['period_days']} дн. · {a['posts_per_week']} поста в неделю"
+        f"Разобрал {n} {plural(n, 'пост', 'поста', 'постов')} за {a['period_days']} дн. · "
+        f"{a['posts_per_week']} в неделю"
     )
-    reach = f" ({a['reach_pct']}% подписчиков)" if a["reach_pct"] is not None else ""
-    lines.append(f"Обычный пост набирает: {fmt_num(a['median_views'])} просмотров{reach}")
+    reach = f" — это {a['reach_pct']}% подписчиков" if a["reach_pct"] is not None else ""
+    m = a["median_views"]
+    lines.append(f"Обычный пост набирает {fmt_num(m)} {plural(m, 'просмотр', 'просмотра', 'просмотров')}{reach}")
 
     def best(groups, min_count=2):
         g = [x for x in groups if x["count"] >= min_count]
         return g[0] if g else None
 
     t = best(a["by_type"])
-    if t and len(a["by_type"]) > 1:
-        lines.append(f"Лучший формат: {t['key']} — ×{t['vs_median']} к обычному посту")
+    if t and len([x for x in a["by_type"] if x["count"] >= 2]) > 1:
+        if t["vs_median"] >= 1.15:
+            lines.append(f"Лучший формат: {t['key']} — {_diff(t['vs_median'])} просмотров, чем обычно")
+        else:
+            lines.append("Формат (видео/фото/текст) на просмотры почти не влияет")
     d = best(a["by_weekday"])
     h = best(a["by_time"])
     if d and h:
-        lines.append(f"Лучше всего заходит: {d['key']}, {h['key']}")
+        lines.append(f"Лучшие день и время: {d['key']}, {h['key']} ({_diff(max(d['vs_median'], h['vs_median']))} просмотров)")
     top = a["top"][0]
-    lines.append(f"Самый сильный пост: {fmt_num(top['views'])} просмотров — t.me/{a['username']}/{top['id']}")
+    v = top["views"]
+    lines.append(
+        f"Самый сильный пост: {fmt_num(v)} {plural(v, 'просмотр', 'просмотра', 'просмотров')} "
+        f"(×{top['x_median']} к обычному) — t.me/{a['username']}/{top['id']}"
+    )
     return "\n".join(lines)
 
 
