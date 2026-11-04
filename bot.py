@@ -43,7 +43,7 @@ PERIODS = {"m": (SUB_DAYS, 1, "месяц"), "y": (365, YEAR_MONTHS_PAID, "го�
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Improvelab_bot")
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
 PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
-FREE = {"report": 1, "ideas": 1, "reel": 1, "insta": 1}  # бесплатные ИИ-запросы на всё время
+FREE = {"report": 1, "ideas": 1, "reel": 1, "video": 1}  # бесплатный пробник (скрины Inst/TikTok, план, сравнение — в подписке)
 PAYWALLS = {
     "report": "Бесплатный ИИ-разбор ты уже использовал.",
     "ideas": "Бесплатную порцию идей ты уже использовал.",
