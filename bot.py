@@ -205,6 +205,31 @@ def niche_line(user) -> str:
     return f"Ниша автора (со слов автора): {n}. Учитывай её во всех советах.\n\n" if n else ""
 
 
+INSIGHT_NAMES = {"compare": "Сравнение с конкурентами", "video": "Разбор видео канала", "reels": "Разбор роликов Inst/TikTok"}
+
+
+def insights_block(user) -> tuple[str, list]:
+    """Выводы прошлых разборов (до 2 недель) для плана и идей."""
+    items = storage.get_insights(user["id"], time.time())
+    if not items:
+        return "", []
+    lines = ["\nЧТО УЖЕ ИЗВЕСТНО ИЗ ПРОШЛЫХ РАЗБОРОВ ЭТОГО АВТОРА — опирайся на эти выводы (рецепты, что забрать у конкурентов, "
+             "чего не делать), используй их в плане/идеях и не противоречь им:"]
+    used = []
+    for kind, ts, text in items:
+        d = time.strftime("%d.%m", time.localtime(ts))
+        lines.append(f"[{INSIGHT_NAMES[kind]}, {d}]:\n{text[:1800]}")
+        used.append(f"{INSIGHT_NAMES[kind].lower()} от {d}")
+    return "\n\n".join(lines) + "\n", used
+
+
+def remember(user, kind, text):
+    try:
+        storage.save_insight(user["id"], kind, text, time.time())
+    except Exception as e:
+        log.warning("save insight failed: %s", e)
+
+
 def daily_summary_loop():
     """Каждый вечер в 21:00 МСК — сводка админу."""
     while True:
@@ -667,7 +692,9 @@ def job_compare(chat_id, user, mine, rivals):
     key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
     text = cached_ai(key, lambda: ai.compare_prompt(niche_line(user) + compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]),
                      max_tokens=5000, heavy=first(user, "compare", "|".join(key[1:])))
-    send(chat_id, text, fb("compare", [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]]))
+    remember(user, "compare", text)
+    send(chat_id, text, fb("compare", [[{"text": "📅 План с учётом сравнения", "callback_data": f"plan:{mine}"}],
+                                       [{"text": "💡 Идеи с учётом сравнения", "callback_data": f"idea:{mine}"}]]))
 
 
 def job_videos(chat_id, user, name):
@@ -686,6 +713,7 @@ def job_videos(chat_id, user, name):
     with lock:
         hit = ai_cache.get(("video", name.lower()))
     if hit and time.time() - hit[0] < AI_CACHE_TTL:  # уже смотрели недавно — не скачиваем и не платим заново
+        remember(user, "video", hit[1])
         send(chat_id, hit[1], kb)
         return
     send(chat_id, f"Смотрю ролики @{name} со звуком: лучшие и худшие… это 2–3 минуты 🎬")
@@ -732,7 +760,9 @@ def job_videos(chat_id, user, name):
     parts.append(ai.video_outro(heard=heard > 0))
     track(user, "video")
     typing(chat_id)
-    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True), kb)
+    text = cached_ai(("video", name.lower()), lambda: parts, heavy=True)
+    remember(user, "video", text)
+    send(chat_id, text, kb)
 
 
 past_ideas: dict[tuple[int, str], list[str]] = {}
@@ -770,7 +800,10 @@ def job_ideas(chat_id, user, name, focus=None):
         return
     previous = "\n".join(prev)[-6000:] or None
     heavy = not prev and first(user, "ideas", name + "|" + (focus or ""))  # «ещё идеи» — всегда дешёвая модель
-    text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous), tag="ideas", heavy=heavy)
+    ins, used = insights_block(user)
+    text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins), tag="ideas", heavy=heavy)
+    if used and not prev:
+        text += "\n\n🧠 Учёл: " + ", ".join(used)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
     past_ideas[key] = prev + (titles or [text[:1500]])
     track(user, "ideas")
@@ -796,7 +829,7 @@ def job_ideas(chat_id, user, name, focus=None):
     )
 
 
-pending_plan: dict[int, str] = {}
+pending_plan = storage.Pending("plan")
 
 
 def ask_week(chat_id, user, name):
@@ -824,9 +857,13 @@ def job_plan(chat_id, user, name, week=None):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     track(user, "plan")
-    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()),
-                            lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a), week),
-                            heavy=first(user, "plan", name)), fb("plan"))
+    ins, used = insights_block(user)
+    text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins)),
+                     lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a), week, ins),
+                     heavy=first(user, "plan", name))
+    if used:
+        text += "\n\n🧠 Учёл: " + ", ".join(used)
+    send(chat_id, text, fb("plan"))
 
 
 # ---------------- Инстаграм / рилсы ----------------
@@ -1105,8 +1142,9 @@ def job_reels_compare(chat_id, user, sess):
     parts.append(ai.reels_compare_outro())
     track(user, "reels")
     typing(chat_id)
-    send(chat_id, ai.ask(parts, heavy=True, tag="reels", max_tokens=5000),
-         fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
+    text = ai.ask(parts, heavy=True, tag="reels", max_tokens=5000)
+    remember(user, "reels", text)
+    send(chat_id, text, fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
 
 
 def handle_media(msg, user) -> bool:
@@ -1161,7 +1199,7 @@ def extract_channels(text: str) -> list[str]:
     return found
 
 
-pending_compare: dict[int, str] = {}
+pending_compare = storage.Pending("cmp")
 
 
 def handle_message(msg: dict):

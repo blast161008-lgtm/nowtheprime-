@@ -162,7 +162,7 @@ def compare_prompt(mine: str, rivals: list[str]) -> str:
 До 3500 знаков."""
 
 
-def plan_prompt(stats: str, week: str | None = None) -> str:
+def plan_prompt(stats: str, week: str | None = None, insights: str = "") -> str:
     if week:
         week_txt = (f"ЧТО У АВТОРА НА ЭТОЙ НЕДЕЛЕ (со слов автора): {week}\n"
                     "Анонсы и продажи — только про это, максимум 2 поста в неделю, остальное — обычный контент. "
@@ -173,7 +173,7 @@ def plan_prompt(stats: str, week: str | None = None) -> str:
     return f"""Статистика канала:
 
 {stats}
-
+{insights}
 {week_txt}
 
 Составь контент-план на 7 дней, начиная с понедельника. Для каждого дня: время публикации (МСК),
@@ -214,7 +214,7 @@ _VIDEO_OUTRO = """Сравни сильные ролики со слабыми. 
 До 3500 знаков."""
 
 
-def ideas_prompt(stats: str, focus: str | None = None, previous: str | None = None) -> str:
+def ideas_prompt(stats: str, focus: str | None = None, previous: str | None = None, insights: str = "") -> str:
     focus_txt = f"\nТЕМА: автор просит идеи именно про: «{focus}». Все идеи — в рамках этой темы.\n" if focus else ""
     prev_txt = (
         f"\nЭТИ ИДЕИ УЖЕ БЫЛИ — не повторяй их и не перефразируй, придумай новые направления:\n{previous}\n"
@@ -223,7 +223,7 @@ def ideas_prompt(stats: str, focus: str | None = None, previous: str | None = No
     return f"""Статистика канала:
 
 {stats}
-{focus_txt}{prev_txt}
+{insights}{focus_txt}{prev_txt}
 Придумай 10 идей, что СНЯТЬ (ролики и кружки, можно 1–2 фото-поста), чтобы поднять охваты этого канала.
 Опирайся на то, что у канала уже залетает (лучшие посты, форматы, темы), и на стиль автора по его подписям.
 Смешай: 4 идеи «повторить рецепт хита», 3 — новые форматы, которых у канала ещё не было, 3 — смелые эксперименты.

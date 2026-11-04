@@ -265,6 +265,68 @@ def kv_set(key, val):
     _safe("SET", key, val)
 
 
+INSIGHT_KINDS = ("compare", "video", "reels")
+
+
+def save_insight(uid, kind: str, text: str, ts: float):
+    """Выводы прошлых разборов — чтобы план и идеи их учитывали."""
+    import json as _json
+    _safe("SET", f"u:{uid}:ins:{kind}", _json.dumps({"ts": int(ts), "text": text[:2500]}, ensure_ascii=False))
+
+
+def get_insights(uid, now: float, max_age_days: int = 14) -> list:
+    import json as _json
+    out = []
+    for kind in INSIGHT_KINDS:
+        raw = _safe("GET", f"u:{uid}:ins:{kind}")
+        if not raw:
+            continue
+        try:
+            d = _json.loads(raw)
+        except Exception:
+            continue
+        if now - d.get("ts", 0) <= max_age_days * 86400:
+            out.append((kind, d["ts"], d["text"]))
+    return out
+
+
+class Pending:
+    """Ожидание ответа пользователя (ник конкурента, события недели) — переживает перезапуск бота."""
+
+    def __init__(self, prefix: str, ttl: int = 3600):
+        self.prefix, self.ttl = prefix, ttl
+
+    def _key(self, uid):
+        return f"u:{uid}:pend:{self.prefix}"
+
+    def get(self, uid, default=None):
+        import json as _json
+        import time as _time
+        raw = _safe("GET", self._key(uid))
+        if not raw:
+            return default
+        try:
+            d = _json.loads(raw)
+        except Exception:
+            return default
+        if _time.time() - d.get("ts", 0) > self.ttl:
+            return default
+        return d.get("v")
+
+    def __contains__(self, uid):
+        return self.get(uid) is not None
+
+    def __setitem__(self, uid, value):
+        import json as _json
+        import time as _time
+        _safe("SET", self._key(uid), _json.dumps({"ts": _time.time(), "v": value}, ensure_ascii=False))
+
+    def pop(self, uid, default=None):
+        v = self.get(uid, default)
+        _safe("SET", self._key(uid), "")
+        return v
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
