@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "TEST")
 os.environ["DATA_DIR"] = "/tmp/aiproducer_test_data"
+os.environ.setdefault("ADMIN_IDS", "1")
 
 import tg_parser
 from analyzer import analyze, compact_for_ai, stats_text

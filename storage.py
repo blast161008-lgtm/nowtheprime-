@@ -162,6 +162,22 @@ def set_home(uid: int, name: str, ts: float):
     set_channel(uid, name)
 
 
+def sub_until(uid) -> float:
+    return float(_safe("GET", f"u:{uid}:sub") or 0)
+
+
+def set_sub(uid, until: float):
+    _safe("SET", f"u:{uid}:sub", int(until))
+
+
+def free_used(uid, kind: str) -> int:
+    return int(_safe("GET", f"u:{uid}:free:{kind}") or 0)
+
+
+def use_free(uid, kind: str):
+    _safe("SET", f"u:{uid}:free:{kind}", free_used(uid, kind) + 1)
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]

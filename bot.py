@@ -35,6 +35,17 @@ ADMIN_IDS = {int(x) for x in re.findall(r"\d+", os.getenv("ADMIN_IDS", ""))}
 DATA_DIR = os.getenv("DATA_DIR", "data")
 MAX_RIVALS = 3
 HOME_CHANGE_DAYS = int(os.getenv("HOME_CHANGE_DAYS", "30"))
+PRICE = int(os.getenv("PRICE", "299"))
+SUB_DAYS = 30
+PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
+FREE = {"report": 1, "ideas": 1}  # бесплатные ИИ-запросы на всё время
+PAYWALLS = {
+    "report": "Бесплатный ИИ-разбор ты уже использовал.",
+    "ideas": "Бесплатную порцию идей ты уже использовал.",
+    "plan": "План на неделю — в подписке.",
+    "video": "Разбор видео — в подписке.",
+    "compare": "Выводы ИИ по конкурентам — в подписке.",
+}
 
 pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
 busy: set[int] = set()
@@ -193,6 +204,85 @@ def run_job(chat_id: int, user: dict, fn, *args, quota: bool = True):
     pool.submit(wrapped)
 
 
+# ---------------- подписка ----------------
+
+def subscribed(uid) -> bool:
+    return storage.sub_until(uid) > time.time()
+
+
+def allow(chat_id, user, kind) -> bool:
+    """Можно ли сделать ИИ-запрос `kind`. Бесплатные — списываются."""
+    uid = user["id"]
+    if uid in ADMIN_IDS or subscribed(uid):
+        return True
+    if storage.free_used(uid, kind) < FREE.get(kind, 0):
+        storage.use_free(uid, kind)
+        return True
+    send(
+        chat_id,
+        f"{PAYWALLS.get(kind, 'Это — в подписке.')}\n\n"
+        f"Подписка {PRICE} ₽ на {SUB_DAYS} дней: разборы, идеи без ограничений, план на неделю, разбор видео и сравнение с конкурентами для твоего канала.",
+        [[{"text": f"💳 Оформить подписку — {PRICE} ₽", "callback_data": "pay"}]],
+    )
+    return False
+
+
+pending_pay: set[int] = set()
+
+
+def pay_code(uid) -> str:
+    return f"IL{str(uid)[-5:]}"
+
+
+def show_pay(chat_id, user):
+    if not PAY_DETAILS:
+        send(chat_id, "Оплата скоро появится 🙌")
+        return
+    until = storage.sub_until(user["id"])
+    extra = ""
+    if until > time.time():
+        extra = f"Подписка уже активна до {time.strftime('%d.%m', time.localtime(until))} — оплата продлит её ещё на {SUB_DAYS} дней.\n\n"
+    send(
+        chat_id,
+        extra + f"Подписка — {PRICE} ₽ на {SUB_DAYS} дней.\n\n"
+        f"1. Переведи {PRICE} ₽ по СБП: {PAY_DETAILS}\n"
+        f"2. В комментарии к переводу напиши код: {pay_code(user['id'])}\n"
+        "3. Нажми «Я оплатил» и пришли скриншот перевода.\n\n"
+        "Подписку включаю вручную после проверки — обычно в течение пары часов.",
+        [[{"text": "✅ Я оплатил", "callback_data": "paid"}]],
+    )
+
+
+def got_payment_proof(msg, user):
+    """Пользователь прислал скриншот — пересылаем админам с кнопками."""
+    pending_pay.discard(user["id"])
+    uid = user["id"]
+    who = "@" + user["username"] if user.get("username") else user.get("first_name", "")
+    info = f"💳 Оплата подписки\nОт: {who} (id {uid})\nКод: {pay_code(uid)}\nСумма: {PRICE} ₽\nКанал: @{home_of(user) or '—'}"
+    kb = [[{"text": "✅ Подтвердить", "callback_data": f"ok:{uid}"}, {"text": "❌ Отклонить", "callback_data": f"no:{uid}"}]]
+    for admin in ADMIN_IDS:
+        api("forwardMessage", chat_id=admin, from_chat_id=msg["chat"]["id"], message_id=msg["message_id"])
+        send(admin, info, kb)
+    send(msg["chat"]["id"], "Спасибо! Проверяю перевод и включу подписку — пришлю сообщение 🙌")
+
+
+def admin_decide(chat_id, admin, data):
+    if admin["id"] not in ADMIN_IDS:
+        return
+    ok = data.startswith("ok:")
+    uid = int(data.split(":", 1)[1])
+    if ok:
+        until = max(storage.sub_until(uid), time.time()) + SUB_DAYS * 86400
+        storage.set_sub(uid, until)
+        d = time.strftime("%d.%m.%Y", time.localtime(until))
+        send(uid, f"🔥 Подписка активна до {d}. Всё открыто — жми кнопки или пришли свой канал.", channel_keyboard(home_of({"id": uid}) or "") if home_of({"id": uid}) else None)
+        send(chat_id, f"✅ Подписка для {uid} включена до {d}. Не забудь чек в «Мой налог».")
+    else:
+        send(uid, "Не нашёл твой перевод 😕 Проверь сумму и код в комментарии и пришли скриншот ещё раз — или напиши, разберёмся.",
+             [[{"text": "💳 Оплатить", "callback_data": "pay"}]])
+        send(chat_id, f"❌ Оплата {uid} отклонена.")
+
+
 # ---------------- свой канал ----------------
 
 def is_admin(user) -> bool:
@@ -285,6 +375,8 @@ def job_report(chat_id, user, name):
         send(chat_id, stats_text(a) + "\n\n(ИИ-разбор пока выключен — нет ключа)", channel_keyboard(name))
         return
     send(chat_id, stats_text(a))
+    if not allow(chat_id, user, "report"):
+        return
     typing(chat_id)
     text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(compact_for_ai(a)))
     send(chat_id, text, channel_keyboard(name))
@@ -324,7 +416,7 @@ def job_compare(chat_id, user, mine, rivals):
         reach = f" · охват {x['reach_pct']}%" if x["reach_pct"] is not None else ""
         table.append(f"@{x['username']}: {x['median_views']} · {x['posts_per_week']}/нед{reach}")
     send(chat_id, "\n".join(table))
-    if not ai.enabled():
+    if not ai.enabled() or not allow(chat_id, user, "compare"):
         return
     typing(chat_id)
     key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
@@ -333,7 +425,7 @@ def job_compare(chat_id, user, mine, rivals):
 
 
 def job_videos(chat_id, user, name):
-    if not guard_own(chat_id, user, name):
+    if not guard_own(chat_id, user, name) or not allow(chat_id, user, "video"):
         return
     if not ai.enabled():
         send(chat_id, "Разбор видео делает ИИ, а он пока не подключён.")
@@ -375,7 +467,7 @@ past_ideas: dict[tuple[int, str], list[str]] = {}
 
 
 def job_ideas(chat_id, user, name, focus=None):
-    if not guard_own(chat_id, user, name):
+    if not guard_own(chat_id, user, name) or not allow(chat_id, user, "ideas"):
         return
     if not ai.enabled():
         send(chat_id, "Идеи придумывает ИИ, а он пока не подключён.")
@@ -419,7 +511,7 @@ def ask_week(chat_id, user, name):
 
 
 def job_plan(chat_id, user, name, week=None):
-    if not guard_own(chat_id, user, name):
+    if not guard_own(chat_id, user, name) or not allow(chat_id, user, "plan"):
         return
     if not ai.enabled():
         send(chat_id, "План на неделю делает ИИ, а он пока не подключён.")
@@ -456,6 +548,9 @@ def handle_message(msg: dict):
     chat_id = msg["chat"]["id"]
     user = msg.get("from") or {"id": chat_id}
     text = (msg.get("text") or "").strip()
+    if user["id"] in pending_pay and (msg.get("photo") or msg.get("document") or (text and not text.startswith("/"))):
+        got_payment_proof(msg, user)
+        return
     if not text:
         send(chat_id, "Пришли @канал или ссылку t.me/...")
         return
@@ -471,6 +566,14 @@ def handle_message(msg: dict):
         return
     if cmd == "/help":
         send(chat_id, HELP)
+        return
+    if cmd in ("/sub", "/pay"):
+        until = storage.sub_until(user["id"])
+        if until > time.time():
+            send(chat_id, f"Подписка активна до {time.strftime('%d.%m.%Y', time.localtime(until))} ✅",
+                 [[{"text": "Продлить", "callback_data": "pay"}]])
+        else:
+            show_pay(chat_id, user)
         return
     if cmd == "/mychannel":
         home, ts = storage.get_home(user["id"])
@@ -575,6 +678,13 @@ def handle_callback(cb: dict):
         run_job(chat_id, user, job_plan, data[6:], None)
     elif data.startswith("plan:"):
         ask_week(chat_id, user, data[5:])
+    elif data == "pay":
+        show_pay(chat_id, user)
+    elif data == "paid":
+        pending_pay.add(user["id"])
+        send(chat_id, "Пришли скриншот перевода одним сообщением 📸")
+    elif data.startswith(("ok:", "no:")):
+        admin_decide(chat_id, user, data)
     elif data.startswith("cmpw:"):
         home = home_of(user)
         if home:
@@ -608,6 +718,7 @@ def set_commands():
             {"command": "ideas", "description": "Идеи, что снять (можно с темой)"},
             {"command": "plan", "description": "Контент-план на неделю"},
             {"command": "mychannel", "description": "Мой канал"},
+            {"command": "sub", "description": "Подписка"},
         ],
     )
 
