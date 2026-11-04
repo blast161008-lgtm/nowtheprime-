@@ -39,13 +39,15 @@ PRICE = int(os.getenv("PRICE", "299"))
 SUB_DAYS = 30
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
 PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
-FREE = {"report": 1, "ideas": 1}  # бесплатные ИИ-запросы на всё время
+FREE = {"report": 1, "ideas": 1, "reel": 1, "insta": 1}  # бесплатные ИИ-запросы на всё время
 PAYWALLS = {
     "report": "Бесплатный ИИ-разбор ты уже использовал.",
     "ideas": "Бесплатную порцию идей ты уже использовал.",
     "plan": "План на неделю — в подписке.",
     "video": "Разбор видео — в подписке.",
     "compare": "Выводы ИИ по конкурентам — в подписке.",
+    "reel": "Бесплатную проверку рилса ты уже использовал.",
+    "insta": "Бесплатный разбор Инстаграма ты уже использовал.",
 }
 
 pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
@@ -164,10 +166,37 @@ START = """Привет! Я ИИ-продюсер 🎬
 • «🎬 Разобрать видео» — посмотрю кадры твоих лучших и худших роликов и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
+📸 Инстаграм / TikTok:
+• «📲 Проверить рилс» — пришли ролик ДО публикации, скажу, залетит ли и что поправить.
+• «📊 Разбор Инсты» — пришли скриншоты статистики, сделаю разбор и 10 идей рилсов.
+
 Первый канал, который пришлёшь, станет твоим: разбор, идеи, план и видео — для него. Сравниваться можно с любыми каналами.
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
 
 HELP = START
+
+
+MENU_INSTA = [
+    [{"text": "📲 Проверить рилс", "callback_data": "help_reel"}],
+    [{"text": "📊 Разбор Инсты по скриншотам", "callback_data": "help_insta"}],
+]
+
+HELP_REEL = """📲 Проверка рилса до публикации
+
+Пришли сюда ролик как обычное видео (до 20 МБ — Telegram обычно сам сжимает).
+Можно добавить подпись, которую планируешь поставить под рилс.
+
+Через минуту скажу: шансы залететь, цепляет ли первая секунда, что поправить, 3 варианта текста-хука, подпись и какой кадр взять на обложку."""
+
+HELP_INSTA = """📊 Разбор Инстаграма по скриншотам
+
+1. Открой в Инстаграме: Профессиональная панель → Статистика.
+2. Сделай 3–5 скриншотов: обзор за 30 дней (охват, просмотры), «Контент, который вы опубликовали» (отсортируй по просмотрам), аудитория.
+3. Пришли их сюда одним сообщением (выдели все сразу).
+
+Можно добавить подпись к скринам — например, «это конкурент» или «хочу больше продаж мерча».
+
+Сделаю разбор: цифры, что заходит, что нет, 10 идей рилсов с хуками и когда постить."""
 
 
 def channel_keyboard(name: str):
@@ -527,6 +556,123 @@ def job_plan(chat_id, user, name, week=None):
     send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()), lambda: ai.plan_prompt(compact_for_ai(a), week)))
 
 
+# ---------------- Инстаграм / рилсы ----------------
+
+TG_FILE_LIMIT = 20 * 1024 * 1024
+
+
+def tg_download(file_id: str) -> bytes:
+    f = api("getFile", file_id=file_id)
+    if not f or not f.get("file_path"):
+        raise RuntimeError("telegram не отдал файл")
+    url = f"https://api.telegram.org/file/bot{TOKEN}/{f['file_path']}"
+    with urllib.request.urlopen(url, timeout=120) as r:
+        return r.read()
+
+
+def job_reel(chat_id, user, file_id, caption):
+    if not ai.enabled():
+        send(chat_id, "Проверку рилса делает ИИ, а он пока не подключён.")
+        return
+    if not allow(chat_id, user, "reel"):
+        return
+    send(chat_id, "Смотрю рилс: вырезаю кадры, проверяю первую секунду… около минуты 🎬")
+    typing(chat_id)
+    frames, meta = video.reel_frames(tg_download(file_id))
+    if not frames:
+        send(chat_id, "Не получилось прочитать видео 😕 Попробуй прислать его ещё раз как обычное видео.")
+        return
+    home = home_of(user)
+    context = None
+    if home:
+        try:
+            context = compact_for_ai(get_channel(home))[:1500]
+        except Exception:
+            context = None
+    parts = [ai.reel_intro(meta, caption, context)]
+    for i, (label, img) in enumerate(frames, 1):
+        parts.append(f"Кадр {i}: {label}")
+        parts.append(img)
+    parts.append(ai.reel_outro())
+    track(user, "reel")
+    typing(chat_id)
+    send(chat_id, ai.ask(parts, heavy=True, tag="reel"),
+         [[{"text": "📲 Проверить ещё рилс", "callback_data": "help_reel"}]])
+
+
+def job_insta(chat_id, user, items, note):
+    if not ai.enabled():
+        send(chat_id, "Разбор делает ИИ, а он пока не подключён.")
+        return
+    if not allow(chat_id, user, "insta"):
+        return
+    send(chat_id, f"Читаю {len(items)} скрин(а/ов) и разбираю статистику… около минуты 📊")
+    typing(chat_id)
+    parts = [ai.insta_intro(note)]
+    for i, fid in enumerate(items[:10], 1):
+        parts.append(f"Скриншот {i}:")
+        parts.append(video.to_jpeg(tg_download(fid)))
+    parts.append(ai.insta_outro())
+    track(user, "insta")
+    typing(chat_id)
+    send(chat_id, ai.ask(parts, heavy=True, tag="insta"),
+         [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]])
+
+
+albums: dict[str, dict] = {}
+
+
+def collect_photo(msg, user, file_id):
+    """Скриншоты могут прийти альбомом — собираем все части и разбираем вместе."""
+    chat_id = msg["chat"]["id"]
+    note = (msg.get("caption") or "").strip() or None
+    gid = msg.get("media_group_id")
+    if not gid:
+        run_job(chat_id, user, job_insta, [file_id], note)
+        return
+    with lock:
+        al = albums.setdefault(gid, {"items": [], "note": None, "timer": None})
+        al["items"].append(file_id)
+        al["note"] = al["note"] or note
+        if al["timer"]:
+            al["timer"].cancel()
+
+        def fire():
+            with lock:
+                done = albums.pop(gid, None)
+            if done:
+                run_job(chat_id, user, job_insta, done["items"], done["note"])
+
+        al["timer"] = threading.Timer(2.5, fire)
+        al["timer"].start()
+
+
+def handle_media(msg, user) -> bool:
+    """Видео → проверка рилса, картинки → разбор Инсты. True, если сообщение обработано."""
+    chat_id = msg["chat"]["id"]
+    vid = msg.get("video") or msg.get("video_note") or msg.get("animation")
+    doc = msg.get("document") or {}
+    mime = doc.get("mime_type", "")
+    if not vid and mime.startswith("video/"):
+        vid = doc
+    if vid:
+        if (vid.get("file_size") or 0) > TG_FILE_LIMIT:
+            send(chat_id, "Видео больше 20 МБ — Telegram не даёт ботам скачивать такие. Пришли его как обычное видео (не файлом) — Telegram сожмёт, или укороти/сожми ролик.")
+            return True
+        run_job(chat_id, user, job_reel, vid["file_id"], (msg.get("caption") or "").strip() or None)
+        return True
+    if msg.get("photo"):
+        collect_photo(msg, user, msg["photo"][-1]["file_id"])
+        return True
+    if mime.startswith("image/"):
+        if (doc.get("file_size") or 0) > TG_FILE_LIMIT:
+            send(chat_id, "Картинка слишком большая — пришли её как фото.")
+            return True
+        collect_photo(msg, user, doc["file_id"])
+        return True
+    return False
+
+
 # ---------------- роутинг ----------------
 
 def extract_channels(text: str) -> list[str]:
@@ -552,8 +698,10 @@ def handle_message(msg: dict):
     if user["id"] in pending_pay and (msg.get("photo") or msg.get("document") or (text and not text.startswith("/"))):
         got_payment_proof(msg, user)
         return
+    if not text and handle_media(msg, user):
+        return
     if not text:
-        send(chat_id, "Пришли @канал или ссылку t.me/...")
+        send(chat_id, "Пришли @канал, ссылку t.me/..., рилс (видео) или скриншоты статистики Инсты.")
         return
     cmd = text.split()[0].split("@")[0].lower() if text.startswith("/") else ""
 
@@ -561,12 +709,18 @@ def handle_message(msg: dict):
         track(user, "start")
         mine = home_of(user)
         if mine:
-            send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine))
+            send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine) + MENU_INSTA)
         else:
-            send(chat_id, START)
+            send(chat_id, START, MENU_INSTA)
         return
     if cmd == "/help":
         send(chat_id, HELP)
+        return
+    if cmd == "/reel":
+        send(chat_id, HELP_REEL)
+        return
+    if cmd == "/insta":
+        send(chat_id, HELP_INSTA)
         return
     if cmd in ("/sub", "/pay"):
         until = storage.sub_until(user["id"])
@@ -592,7 +746,7 @@ def handle_message(msg: dict):
         return
     if cmd == "/stats" and user["id"] in ADMIN_IDS:
         st = storage.all_stats()
-        acts = ("report", "compare", "plan", "video", "ideas")
+        acts = ("report", "compare", "plan", "video", "ideas", "reel", "insta")
         total = sum(int(u.get(k, 0)) for u in st.values() for k in acts)
         day_ago = time.time() - 86400
         active = sum(1 for u in st.values() if float(u.get("last", 0)) > day_ago)
@@ -679,6 +833,10 @@ def handle_callback(cb: dict):
         run_job(chat_id, user, job_plan, data[6:], None)
     elif data.startswith("plan:"):
         ask_week(chat_id, user, data[5:])
+    elif data == "help_reel":
+        send(chat_id, HELP_REEL)
+    elif data == "help_insta":
+        send(chat_id, HELP_INSTA)
     elif data == "pay":
         show_pay(chat_id, user)
     elif data == "paid":
@@ -718,6 +876,8 @@ def set_commands():
             {"command": "compare", "description": "Сравнить с конкурентами"},
             {"command": "ideas", "description": "Идеи, что снять (можно с темой)"},
             {"command": "plan", "description": "Контент-план на неделю"},
+            {"command": "reel", "description": "Проверить рилс до публикации"},
+            {"command": "insta", "description": "Разбор Инсты по скриншотам"},
             {"command": "mychannel", "description": "Мой канал"},
             {"command": "sub", "description": "Подписка"},
         ],

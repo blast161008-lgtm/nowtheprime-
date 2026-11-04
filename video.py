@@ -116,3 +116,67 @@ def frames_for(post: dict, n: int = 4) -> tuple[list[tuple[str, bytes]], float]:
         except Exception as e:
             log.warning("thumb failed for %s: %s", post.get("id"), e)
     return out, dur
+
+
+def _probe(ff: str, path: str) -> dict:
+    r = subprocess.run([ff, "-hide_banner", "-i", path], capture_output=True, text=True)
+    info = {"has_audio": "Audio:" in r.stderr}
+    m = re.search(r"Video:.*?(\d{2,5})x(\d{2,5})", r.stderr)
+    if m:
+        info["w"], info["h"] = int(m.group(1)), int(m.group(2))
+    m = re.search(r"(\d+(?:\.\d+)?) fps", r.stderr)
+    if m:
+        info["fps"] = float(m.group(1))
+    if info["has_audio"]:
+        v = subprocess.run([ff, "-hide_banner", "-i", path, "-vn", "-af", "volumedetect", "-f", "null", "-"],
+                           capture_output=True, text=True, timeout=120)
+        mm = re.search(r"mean_volume: (-?[\d.]+) dB", v.stderr)
+        if mm:
+            info["mean_db"] = float(mm.group(1))
+    return info
+
+
+def reel_frames(data: bytes) -> tuple[list[tuple[str, bytes]], dict]:
+    """Кадры из присланного ролика: начало подробно (там решается, смотреть ли), дальше по ходу."""
+    ff = ffmpeg_path()
+    if not ff:
+        raise RuntimeError("ffmpeg недоступен")
+    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
+        tmp.write(data)
+        path = tmp.name
+    try:
+        dur = _duration(ff, path)
+        meta = _probe(ff, path)
+        meta["duration"] = round(dur, 1)
+        if dur <= 0:
+            raise RuntimeError("не удалось прочитать видео")
+        marks = [("самый первый кадр (0.0 с) — то, что видно в ленте до старта", 0.0)]
+        for t in (0.7, 1.5, 3.0):
+            if t < dur - 0.3:
+                marks.append((f"{t} с", t))
+        for frac in (0.35, 0.6, 0.85):
+            t = dur * frac
+            if t > 3.3:
+                marks.append((f"{round(t, 1)} с из {round(dur, 1)}", t))
+        marks.append(("последний кадр (финал)", max(dur - 0.3, 0)))
+        out = []
+        for label, t in marks:
+            img = _frame(ff, path, t)
+            if img:
+                out.append((label, img))
+        return out, meta
+    finally:
+        os.unlink(path)
+
+
+def to_jpeg(data: bytes) -> bytes:
+    """Картинку любого формата (png, webp, heic…) — в jpeg для ИИ."""
+    if data[:3] == b"\xff\xd8\xff":
+        return data
+    ff = ffmpeg_path()
+    r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-i", "pipe:0", "-vf", "scale='min(1280,iw)':-2",
+                        "-q:v", "4", "-f", "image2pipe", "-vcodec", "mjpeg", "-"],
+                       input=data, capture_output=True, timeout=60)
+    if r.returncode or not r.stdout:
+        raise RuntimeError("не получилось прочитать картинку")
+    return r.stdout
