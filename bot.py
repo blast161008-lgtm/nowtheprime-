@@ -505,6 +505,17 @@ def run_webhook(base_url: str, port: int):
         def log_message(self, *a):
             pass
 
+    def keepalive():
+        # бесплатный Render усыпляет сервис после 15 мин без входящих запросов — пингуем себя каждые 10 мин
+        while True:
+            time.sleep(600)
+            try:
+                urllib.request.urlopen(base_url.rstrip("/") + "/", timeout=30).read()
+            except Exception as e:
+                log.warning("keepalive failed: %s", e)
+            api("setWebhook", url=base_url.rstrip("/") + path, secret_token=secret, drop_pending_updates=False)
+
+    threading.Thread(target=keepalive, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", port), H)
     api("setWebhook", url=base_url.rstrip("/") + path, secret_token=secret, drop_pending_updates=False)
     log.info("webhook started on :%s", port)
