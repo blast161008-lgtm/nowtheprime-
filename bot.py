@@ -555,6 +555,7 @@ def main():
     me = api("getMe")
     log.info("bot @%s, AI %s", (me or {}).get("username"), "on" if ai.enabled() else "off")
     set_commands()
+    storage.db()
     video.warmup()
     base = os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_URL")
     if base:
