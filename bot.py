@@ -130,7 +130,7 @@ START = """Привет! Я ИИ-продюсер 🎬
 
 Как пользоваться:
 • Пришли @канал или ссылку t.me/... — сделаю разбор: что заходит, что нет, 5 идей постов и лучшее время.
-• /compare @мой @конкурент1 @конкурент2 — сравню с конкурентами и скажу, что у них забрать.
+• После разбора жми «Сравнить с конкурентами» и пришли ник конкурента — скажу, что тебе снимать, чтобы обогнать его по охватам.
 • /plan — контент-план на неделю для последнего канала.
 
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
@@ -252,6 +252,9 @@ def extract_channels(text: str) -> list[str]:
     return found
 
 
+pending_compare: dict[int, str] = {}
+
+
 def handle_message(msg: dict):
     chat_id = msg["chat"]["id"]
     user = msg.get("from") or {"id": chat_id}
@@ -288,9 +291,19 @@ def handle_message(msg: dict):
         run_job(chat_id, user, job_plan, name)
         return
 
+    if not cmd and chans and user["id"] in pending_compare:
+        mine = pending_compare.pop(user["id"])
+        rivals = [c for c in chans if c.lower() != mine.lower()][:MAX_RIVALS]
+        if rivals:
+            run_job(chat_id, user, job_compare, mine, rivals)
+            return
+
+    if cmd == "/compare" and len(chans) == 1 and last_channel.get(user["id"]):
+        chans = [last_channel[user["id"]]] + chans
+
     if cmd == "/compare" or (not cmd and len(chans) >= 2):
         if len(chans) < 2:
-            send(chat_id, "Формат: /compare @мой_канал @конкурент1 @конкурент2\n(первым — твой, до 3 конкурентов)")
+            send(chat_id, "Формат: /compare @мой_канал @конкурент1 @конкурент2\n(первым — твой, до 3 конкурентов). Если уже разбирал свой канал — можно просто /compare @конкурент")
             return
         run_job(chat_id, user, job_compare, chans[0], chans[1 : 1 + MAX_RIVALS])
         return
@@ -304,9 +317,6 @@ def handle_message(msg: dict):
     run_job(chat_id, user, job_report, chans[0])
 
 
-pending_compare: dict[int, str] = {}
-
-
 def handle_callback(cb: dict):
     api("answerCallbackQuery", callback_query_id=cb["id"])
     data = cb.get("data", "")
@@ -316,7 +326,8 @@ def handle_callback(cb: dict):
         run_job(chat_id, user, job_plan, data[5:])
     elif data.startswith("cmp:"):
         name = data[4:]
-        send(chat_id, f"Пришли одним сообщением 1–3 канала конкурентов, например:\n@{name} @конкурент1 @конкурент2")
+        pending_compare[user["id"]] = name
+        send(chat_id, f"Пришли ник конкурента (можно до трёх через пробел), например:\n@konkurent1 @konkurent2\n\nСравню с @{name} и скажу, что тебе снимать, чтобы поднять охваты.")
 
 
 def handle_update(upd: dict):
