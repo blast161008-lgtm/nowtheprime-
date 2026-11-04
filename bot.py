@@ -119,8 +119,106 @@ def typing(chat_id: int):
 
 # ---------------- данные пользователей ----------------
 
+def msk_now():
+    return time.gmtime(time.time() + 3 * 3600)
+
+
+def today() -> str:
+    return time.strftime("%Y-%m-%d", msk_now())
+
+
+def notify_admins(text, kb=None):
+    for admin in ADMIN_IDS:
+        try:
+            send(admin, text, kb)
+        except Exception:
+            pass
+
+
+def who(user) -> str:
+    return "@" + user["username"] if user.get("username") else (user.get("first_name") or str(user["id"]))
+
+
 def track(user: dict, event: str) -> bool:
-    return storage.track(user, event, time.time())
+    is_new = storage.track(user, event, time.time())
+    storage.day_incr(today(), event)
+    if is_new:
+        storage.day_incr(today(), "new_users")
+        if user["id"] not in ADMIN_IDS:
+            notify_admins(f"🆕 Новый пользователь: {who(user)} (id {user['id']})")
+    return is_new
+
+
+# ---------- обратная связь 👍/👎 ----------
+FB_NAMES = {"report": "разбор канала", "compare": "сравнение", "video": "видео канала", "ideas": "идеи", "plan": "план",
+            "reel": "проверка рилса", "insta": "скриншоты", "reels": "разбор по роликам"}
+pending_fb: dict[int, str] = {}
+voted: set = set()
+
+
+def fb(kind: str, kb=None):
+    """Клавиатура ответа ИИ + строка оценки."""
+    return (kb or []) + [[{"text": "👍 Полезно", "callback_data": f"fb:1:{kind}"},
+                          {"text": "👎 Не то", "callback_data": f"fb:0:{kind}"}]]
+
+
+def on_feedback(cb, user, data):
+    _, up, kind = data.split(":", 2)
+    mid = (cb.get("message") or {}).get("message_id")
+    if (user["id"], mid) in voted:
+        return
+    voted.add((user["id"], mid))
+    chat_id = cb["message"]["chat"]["id"]
+    storage.fb_add(kind, up == "1")
+    storage.day_incr(today(), "fb_up" if up == "1" else "fb_down")
+    if up == "1":
+        send(chat_id, "Спасибо! 🙌")
+        notify_admins(f"👍 {who(user)} оценил: {FB_NAMES.get(kind, kind)}")
+    else:
+        pending_fb[user["id"]] = kind
+        send(chat_id, "Что было не так? Напиши одним сообщением — это сильно поможет сделать бота лучше 🙏")
+
+
+# ---------- ниша автора ----------
+NICHES = [("dance", "💃 Танцы"), ("sport", "🏋️ Спорт / фитнес"), ("beauty", "💅 Бьюти"), ("brand", "🛍 Бренд / магазин"),
+          ("expert", "🎓 Эксперт / обучение"), ("blog", "📸 Блог / лайфстайл"), ("music", "🎵 Музыка / творчество"),
+          ("other", "✍️ Другое — напишу")]
+pending_niche: set = set()
+
+
+def ask_niche(chat_id):
+    rows = [[{"text": t, "callback_data": f"niche:{k}"}] for k, t in NICHES]
+    send(chat_id, "О чём ты снимаешь? Буду учитывать это во всех советах 👇", rows)
+
+
+def niche_line(user) -> str:
+    n = storage.get_niche(user["id"])
+    return f"Ниша автора (со слов автора): {n}. Учитывай её во всех советах.\n\n" if n else ""
+
+
+def daily_summary_loop():
+    """Каждый вечер в 21:00 МСК — сводка админу."""
+    while True:
+        try:
+            t = msk_now()
+            day = time.strftime("%Y-%m-%d", t)
+            if t.tm_hour >= 21 and storage.kv_get("summary_sent") != day:
+                storage.kv_set("summary_sent", day)
+                d = storage.day_stats(day)
+                total = len(storage.all_stats())
+                acts = [(k, v) for k, v in d.items() if k in FB_NAMES]
+                lines = [f"📊 Сводка за {time.strftime('%d.%m', t)}",
+                         f"Новых пользователей: {d.get('new_users', 0)} (всего {total})",
+                         f"Запусков /start: {d.get('start', 0)}"]
+                if acts:
+                    lines.append("Запросы: " + ", ".join(f"{FB_NAMES[k]} — {v}" for k, v in sorted(acts, key=lambda x: -x[1])))
+                else:
+                    lines.append("Запросов к ИИ сегодня не было.")
+                lines.append(f"Оценки: 👍 {d.get('fb_up', 0)} / 👎 {d.get('fb_down', 0)}")
+                notify_admins("\n".join(lines))
+        except Exception as e:
+            log.warning("summary failed: %s", e)
+        time.sleep(300)
 
 
 def take_quota(uid: int) -> bool:
@@ -191,6 +289,19 @@ START = """Привет! Я ИИ-продюсер 🎬
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
 
 HELP = START
+
+START_SHORT = """Привет! Я ИИ-продюсер 🎬
+Подскажу, что снимать и постить, чтобы росли просмотры — в Telegram, Instagram и TikTok.
+
+С чего начнём? 👇"""
+
+MENU_START = [
+    [{"text": "📢 Разобрать мой Telegram-канал", "callback_data": "tg_help"}],
+    [{"text": "📲 Проверить рилс до публикации", "callback_data": "help_reel"}],
+    [{"text": "🎞 Разбор Inst / TikTok по роликам", "callback_data": "vs_start"}],
+    [{"text": "📊 По скриншотам статистики", "callback_data": "help_insta"}],
+    [{"text": "ℹ️ Все возможности", "callback_data": "help_all"}],
+]
 
 
 MENU_INSTA = [
@@ -497,9 +608,9 @@ def job_report(chat_id, user, name):
     if not allow(chat_id, user, "report"):
         return
     typing(chat_id)
-    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(compact_for_ai(a)),
+    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(niche_line(user) + compact_for_ai(a)),
                      heavy=first(user, "report", name))
-    send(chat_id, text, channel_keyboard(name))
+    send(chat_id, text, fb("report", channel_keyboard(name)))
 
 
 def job_compare(chat_id, user, mine, rivals):
@@ -540,9 +651,9 @@ def job_compare(chat_id, user, mine, rivals):
         return
     typing(chat_id)
     key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
-    text = cached_ai(key, lambda: ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]),
+    text = cached_ai(key, lambda: ai.compare_prompt(niche_line(user) + compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]),
                      max_tokens=5000, heavy=first(user, "compare", "|".join(key[1:])))
-    send(chat_id, text, [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]])
+    send(chat_id, text, fb("compare", [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]]))
 
 
 def job_videos(chat_id, user, name):
@@ -557,7 +668,7 @@ def job_videos(chat_id, user, name):
     if not a["ok"] or not a.get("video_top"):
         send(chat_id, "Не нашёл у канала достаточно видео или кружков для сравнения (нужно хотя бы 2).")
         return
-    parts = [ai.video_intro(compact_for_ai(a))]
+    parts = [ai.video_intro(niche_line(user) + compact_for_ai(a))]
     got = heard = 0
     for title, group in (("СИЛЬНЫЕ РОЛИКИ", a["video_top"]), ("СЛАБЫЕ РОЛИКИ", a["video_worst"])):
         parts.append(f"\n===== {title} =====")
@@ -599,7 +710,8 @@ def job_videos(chat_id, user, name):
     parts.append(ai.video_outro(heard=heard > 0))
     track(user, "video")
     typing(chat_id)
-    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
+    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True),
+         fb("video", [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]]))
 
 
 past_ideas: dict[tuple[int, str], list[str]] = {}
@@ -637,7 +749,7 @@ def job_ideas(chat_id, user, name, focus=None):
         return
     previous = "\n".join(prev)[-6000:] or None
     heavy = not prev and first(user, "ideas", name + "|" + (focus or ""))  # «ещё идеи» — всегда дешёвая модель
-    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous), tag="ideas", heavy=heavy)
+    text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous), tag="ideas", heavy=heavy)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
     past_ideas[key] = prev + (titles or [text[:1500]])
     track(user, "ideas")
@@ -659,7 +771,7 @@ def job_ideas(chat_id, user, name, focus=None):
     send(
         chat_id,
         text + "\n\nХочешь идеи на конкретную тему — напиши, например: /ideas бренд одежды",
-        [[{"text": "🔁 Ещё идеи", "callback_data": cb}], [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]],
+        fb("ideas", [[{"text": "🔁 Ещё идеи", "callback_data": cb}], [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]]),
     )
 
 
@@ -691,8 +803,9 @@ def job_plan(chat_id, user, name, week=None):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     track(user, "plan")
-    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()), lambda: ai.plan_prompt(compact_for_ai(a), week),
-                            heavy=first(user, "plan", name)))
+    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()),
+                            lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a), week),
+                            heavy=first(user, "plan", name)), fb("plan"))
 
 
 # ---------------- Инстаграм / рилсы ----------------
@@ -729,8 +842,10 @@ def job_reel(chat_id, user, file_id, caption):
             context = compact_for_ai(get_channel(home))[:1500]
         except Exception:
             context = None
+    if niche_line(user):
+        context = niche_line(user) + (context or "")
     track(user, "reel")
-    kb = [[{"text": "📲 Проверить ещё рилс", "callback_data": "help_reel"}]]
+    kb = fb("reel", [[{"text": "📲 Проверить ещё рилс", "callback_data": "help_reel"}]])
 
     # 1) Gemini смотрит ролик целиком — картинка + звук
     if ai_media.gemini_enabled():
@@ -804,7 +919,7 @@ def job_insta(chat_id, user, items, note):
         return
     send(chat_id, f"Читаю скриншоты ({len(items)}) и разбираю статистику… около минуты 📊")
     typing(chat_id)
-    parts = [ai.insta_intro(note)]
+    parts = [ai.insta_intro((niche_line(user) + (note or "")).strip() or None)]
     for i, fid in enumerate(items[:10], 1):
         parts.append(f"Скриншот {i}:")
         parts.append(video.to_jpeg(tg_download(fid)))
@@ -812,7 +927,7 @@ def job_insta(chat_id, user, items, note):
     track(user, "insta")
     typing(chat_id)
     send(chat_id, ai.ask(parts, heavy=True, tag="insta"),
-         [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]])
+         fb("insta", [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]]))
 
 
 albums: dict[str, dict] = {}
@@ -924,7 +1039,7 @@ def job_reels_compare(chat_id, user, sess):
         return {"хит": 10**12, "слабый": -1}.get(it["label"], 0)
     items = sorted(items, key=score, reverse=True)
     n_strong = max(1, (len(items) + 1) // 2)
-    parts = [ai.reels_compare_intro(sess.get("note"))]
+    parts = [ai.reels_compare_intro((niche_line(user) + (sess.get("note") or "")).strip() or None)]
     got = 0
     for idx, it in enumerate(items, 1):
         typing(chat_id)
@@ -970,7 +1085,7 @@ def job_reels_compare(chat_id, user, sess):
     track(user, "reels")
     typing(chat_id)
     send(chat_id, ai.ask(parts, heavy=True, tag="reels", max_tokens=5000),
-         [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]])
+         fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
 
 
 def handle_media(msg, user) -> bool:
@@ -1050,12 +1165,17 @@ def handle_message(msg: dict):
                 log.info("referral: %s invited by %s", user["id"], payload[4:])
         mine = home_of(user)
         if mine:
-            send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine) + MENU_INSTA)
+            send(chat_id, f"С возвращением! Твой канал: @{mine} — жми кнопки 👇", channel_keyboard(mine) + MENU_INSTA)
         else:
-            send(chat_id, START, MENU_INSTA)
+            send(chat_id, START_SHORT, MENU_START)
+        if is_new or not storage.get_niche(user["id"]):
+            ask_niche(chat_id)
         return
     if cmd == "/help":
         send(chat_id, HELP)
+        return
+    if cmd == "/niche":
+        ask_niche(chat_id)
         return
     if cmd == "/invite":
         show_invite(chat_id, user)
@@ -1107,6 +1227,14 @@ def handle_message(msg: dict):
         for uid, u in top:
             n = sum(int(u.get(k, 0)) for k in acts)
             lines.append(f"{'@' + u['name'] if u.get('name') else uid}: {n}")
+        fbd = storage.fb_all()
+        if fbd:
+            lines.append("")
+            lines.append("Оценки 👍/👎:")
+            for k, name_ in FB_NAMES.items():
+                u_, d_ = fbd.get(f"{k}:up", 0), fbd.get(f"{k}:down", 0)
+                if u_ or d_:
+                    lines.append(f"{name_}: {u_} / {d_}")
         send(chat_id, "\n".join(lines))
         return
 
@@ -1129,6 +1257,17 @@ def handle_message(msg: dict):
             send(chat_id, "Сначала пришли канал, или так: /plan @канал")
             return
         ask_week(chat_id, user, name)
+        return
+
+    if not cmd and user["id"] in pending_niche:
+        pending_niche.discard(user["id"])
+        storage.set_niche(user["id"], text)
+        send(chat_id, f"Записал: {text[:80]} ✍️ Теперь пришли свой канал (@ник) или ролик 👇")
+        return
+    if not cmd and user["id"] in pending_fb and not chans:
+        kind = pending_fb.pop(user["id"])
+        notify_admins(f"👎 Отзыв ({FB_NAMES.get(kind, kind)}) от {who(user)}:\n{text[:1000]}")
+        send(chat_id, "Спасибо, передал! Исправим 🙏")
         return
 
     sess = vs_session(user["id"])
@@ -1203,6 +1342,21 @@ def handle_callback(cb: dict):
         ask_week(chat_id, user, data[5:])
     elif data == "help_reel":
         send(chat_id, HELP_REEL)
+    elif data.startswith("fb:"):
+        on_feedback(cb, user, data)
+    elif data.startswith("niche:"):
+        key = data[6:]
+        if key == "other":
+            pending_niche.add(user["id"])
+            send(chat_id, "Напиши в двух словах, о чём ты снимаешь:")
+        else:
+            label = dict(NICHES).get(key, key)
+            storage.set_niche(user["id"], label.split(" ", 1)[1] if " " in label else label)
+            send(chat_id, f"Записал: {label} ✅ Теперь пришли свой канал (@ник) или ролик 👇")
+    elif data == "tg_help":
+        send(chat_id, "Пришли ник своего канала (@канал) или ссылку t.me/… — канал должен быть публичным. Сделаю разбор за полгода 📊")
+    elif data == "help_all":
+        send(chat_id, HELP, MENU_INSTA)
     elif data == "vs_start":
         vs_sessions[user["id"]] = {"items": [], "shots": [], "ts": time.time(), "note": None}
         send(chat_id, HELP_VS)
@@ -1260,10 +1414,27 @@ def set_commands():
             {"command": "insta", "description": "Разбор Inst / TikTok по роликам"},
             {"command": "shots", "description": "Разбор по скриншотам статистики"},
             {"command": "mychannel", "description": "Мой канал"},
+            {"command": "niche", "description": "О чём я снимаю (ниша)"},
             {"command": "sub", "description": "Подписка"},
             {"command": "invite", "description": "Пригласить друга — месяц в подарок"},
         ],
     )
+
+
+BOT_DESCRIPTION = """ИИ-продюсер для авторов 🎬
+
+• Разбираю Telegram-канал за полгода: что заходит, что нет и что снимать дальше
+• Проверяю рилс ДО публикации — смотрю и слушаю: хук, трек, бит, монтаж
+• Сравниваю твои хиты и слабые ролики в Instagram и TikTok и даю рецепт
+• Идеи для съёмок, контент-план, сравнение с конкурентами
+
+Жми «Старт» и пришли свой канал или ролик 👇"""
+BOT_SHORT = "ИИ-продюсер: разбор Telegram-канала, проверка рилсов со звуком, идеи и план — что снимать, чтобы росли просмотры"
+
+
+def set_profile():
+    api("setMyDescription", description=BOT_DESCRIPTION)
+    api("setMyShortDescription", short_description=BOT_SHORT[:120])
 
 
 def run_polling():
@@ -1336,7 +1507,9 @@ def main():
     BOT_USERNAME = (me or {}).get("username") or BOT_USERNAME
     log.info("bot @%s, AI %s", (me or {}).get("username"), "on" if ai.enabled() else "off")
     set_commands()
+    set_profile()
     storage.db()
+    threading.Thread(target=daily_summary_loop, daemon=True).start()
     video.warmup()
     threading.Thread(target=ai_media.selftest, args=(video.test_clip,), daemon=True).start()
     base = os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_URL")

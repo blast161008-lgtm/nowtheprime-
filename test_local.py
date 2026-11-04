@@ -107,7 +107,7 @@ def texts():
 
 
 msg("/start")
-assert "ИИ-продюсер" in texts()[-1]
+assert "ИИ-продюсер" in texts()[-2] and "О чём ты снимаешь" in texts()[-1]
 msg("https://t.me/testchan")
 assert any("Подписчиков: 12.4K" in t for t in texts()), texts()
 assert "ИИ-ответ" in texts()[-1]

@@ -231,6 +231,40 @@ def month_use(uid, bucket: str, month: str):
     _safe("SET", f"u:{uid}:m:{month}:{bucket}", month_used(uid, bucket, month) + 1)
 
 
+def get_niche(uid):
+    return _safe("GET", f"u:{uid}:niche")
+
+
+def set_niche(uid, niche: str):
+    _safe("SET", f"u:{uid}:niche", niche[:80])
+
+
+def day_incr(day: str, field: str, n: int = 1):
+    _safe("HINCRBY", f"day:{day}", field, n)
+
+
+def day_stats(day: str) -> dict:
+    flat = _safe("HGETALL", f"day:{day}", default=[]) or []
+    return {k: int(v) for k, v in zip(flat[::2], flat[1::2])}
+
+
+def fb_add(kind: str, up: bool):
+    _safe("HINCRBY", "fb", f"{kind}:{'up' if up else 'down'}", 1)
+
+
+def fb_all() -> dict:
+    flat = _safe("HGETALL", "fb", default=[]) or []
+    return {k: int(v) for k, v in zip(flat[::2], flat[1::2])}
+
+
+def kv_get(key):
+    return _safe("GET", key)
+
+
+def kv_set(key, val):
+    _safe("SET", key, val)
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
