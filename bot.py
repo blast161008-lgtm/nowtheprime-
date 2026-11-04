@@ -4,6 +4,7 @@
 - webhook (если задан RENDER_EXTERNAL_URL или WEBHOOK_URL) — для Render / любого хостинга с HTTPS;
 - long polling (иначе) — для запуска на своём компьютере.
 """
+import hashlib
 import json
 import logging
 import os
@@ -355,8 +356,10 @@ def run_polling():
 
 
 def run_webhook(base_url: str, port: int):
-    secret = os.getenv("WEBHOOK_SECRET") or secrets.token_hex(16)
-    path = "/tg/" + secrets.token_hex(8)
+    # стабильные путь и секрет: после «сна» бесплатного сервера старые запросы Telegram не теряются
+    digest = hashlib.sha256(TOKEN.encode()).hexdigest()
+    secret = os.getenv("WEBHOOK_SECRET") or digest[:32]
+    path = "/tg/" + digest[32:48]
 
     class H(BaseHTTPRequestHandler):
         def do_GET(self):
