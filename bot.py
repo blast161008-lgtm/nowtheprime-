@@ -38,6 +38,7 @@ HOME_CHANGE_DAYS = int(os.getenv("HOME_CHANGE_DAYS", "30"))
 PRICE = int(os.getenv("PRICE", "299"))
 SUB_DAYS = 30
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
+PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
 FREE = {"report": 1, "ideas": 1}  # бесплатные ИИ-запросы на всё время
 PAYWALLS = {
     "report": "Бесплатный ИИ-разбор ты уже использовал.",
@@ -213,7 +214,7 @@ def subscribed(uid) -> bool:
 def allow(chat_id, user, kind) -> bool:
     """Можно ли сделать ИИ-запрос `kind`. Бесплатные — списываются."""
     uid = user["id"]
-    if uid in ADMIN_IDS or subscribed(uid):
+    if not PAYWALL or uid in ADMIN_IDS or subscribed(uid):
         return True
     if storage.free_used(uid, kind) < FREE.get(kind, 0):
         storage.use_free(uid, kind)
