@@ -132,6 +132,7 @@ START = """Привет! Я ИИ-продюсер 🎬
 Как пользоваться:
 • Пришли @канал или ссылку t.me/... — сделаю разбор: что заходит, что нет, 5 идей постов и лучшее время.
 • После разбора жми «Сравнить с конкурентами» и пришли ник конкурента — скажу, что тебе снимать, чтобы обогнать его по охватам.
+• «💡 Идеи для съёмок» — 10 идей, что снять, с первым кадром и первыми словами. Жми «Ещё» сколько угодно, или /ideas тема — идеи на конкретную тему.
 • «🎬 Разобрать видео» — посмотрю кадры твоих лучших и худших роликов и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
@@ -142,6 +143,7 @@ HELP = START
 
 def channel_keyboard(name: str):
     return [
+        [{"text": "💡 Идеи для съёмок", "callback_data": f"idea:{name}"}],
         [{"text": "🎬 Разобрать видео", "callback_data": f"vid:{name}"}],
         [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}],
         [{"text": "⚔️ Сравнить с конкурентами", "callback_data": f"cmp:{name}"}],
@@ -263,6 +265,36 @@ def job_videos(chat_id, user, name):
     send(chat_id, ai.ask(parts), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
 
 
+past_ideas: dict[tuple[int, str], list[str]] = {}
+
+
+def job_ideas(chat_id, user, name, focus=None):
+    if not ai.enabled():
+        send(chat_id, "Идеи придумывает ИИ, а он пока не подключён.")
+        return
+    key = (user["id"], name.lower(), (focus or "").lower())
+    prev = past_ideas.get(key, [])
+    send(chat_id, ("Придумываю ещё 10 идей" if prev else "Придумываю 10 идей для съёмок") + f" для @{name}" + (f" на тему «{focus}»" if focus else "") + "… ⏳")
+    typing(chat_id)
+    a = get_channel(name)
+    if not a["ok"]:
+        send(chat_id, "Не нашёл постов с просмотрами.")
+        return
+    previous = "\n".join(prev)[-6000:] or None
+    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous))
+    titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
+    past_ideas[key] = prev + (titles or [text[:1500]])
+    track(user, "ideas")
+    cb = f"idea:{name}" + (f"|{focus}" if focus else "")
+    if len(cb.encode()) > 64:
+        cb = f"idea:{name}"
+    send(
+        chat_id,
+        text + "\n\nХочешь идеи на конкретную тему — напиши, например: /ideas бренд одежды",
+        [[{"text": "🔁 Ещё идеи", "callback_data": cb}], [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]],
+    )
+
+
 def job_plan(chat_id, user, name):
     if not ai.enabled():
         send(chat_id, "План на неделю делает ИИ, а он пока не подключён.")
@@ -317,11 +349,21 @@ def handle_message(msg: dict):
                 db = json.load(f)
         except Exception:
             db = {}
-        reports = sum(u.get("report", 0) + u.get("compare", 0) + u.get("plan", 0) + u.get("video", 0) for u in db.values())
+        reports = sum(u.get("report", 0) + u.get("compare", 0) + u.get("plan", 0) + u.get("video", 0) + u.get("ideas", 0) for u in db.values())
         send(chat_id, f"Пользователей: {len(db)}\nРазборов всего: {reports}")
         return
 
     chans = extract_channels(text[len(cmd):] if cmd else text)
+
+    if cmd == "/ideas":
+        rest = text[len(text.split()[0]):]
+        focus = re.sub(r"(?:https?://)?(?:t\.me|telegram\.me)/(?:s/)?[A-Za-z0-9_]+|@[A-Za-z0-9_]+", "", rest).strip() or None
+        name = next((c for c in chans if "@" + c in rest or "t.me/" + c in rest), None) or last_channel.get(user["id"])
+        if not name:
+            send(chat_id, "Сначала пришли свой канал, или так: /ideas @канал тема")
+            return
+        run_job(chat_id, user, job_ideas, name, focus[:60] if focus else None)
+        return
 
     if cmd == "/plan":
         name = chans[0] if chans else last_channel.get(user["id"])
@@ -362,7 +404,11 @@ def handle_callback(cb: dict):
     data = cb.get("data", "")
     chat_id = cb["message"]["chat"]["id"]
     user = cb["from"]
-    if data.startswith("vid:"):
+    if data.startswith("idea:"):
+        rest = data[5:]
+        name, _, focus = rest.partition("|")
+        run_job(chat_id, user, job_ideas, name, focus or None)
+    elif data.startswith("vid:"):
         run_job(chat_id, user, job_videos, data[4:])
     elif data.startswith("plan:"):
         run_job(chat_id, user, job_plan, data[5:])
@@ -390,6 +436,7 @@ def set_commands():
         commands=[
             {"command": "start", "description": "Как пользоваться"},
             {"command": "compare", "description": "Сравнить с конкурентами"},
+            {"command": "ideas", "description": "Идеи, что снять (можно с темой)"},
             {"command": "plan", "description": "Контент-план на неделю"},
         ],
     )
