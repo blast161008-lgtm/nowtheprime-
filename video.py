@@ -241,3 +241,14 @@ def test_clip() -> bytes:
                             "-c:a", "aac", "-movflags", "frag_keyframe+empty_moov", "-f", "mp4", "pipe:1"],
                            capture_output=True, timeout=60)
     return r.stdout
+
+
+def post_video_bytes(post: dict) -> bytes | None:
+    """Скачивает ролик поста из t.me (если Telegram отдаёт его в открытый доступ)."""
+    if not post.get("video_url"):
+        return None
+    try:
+        return download(post["video_url"])
+    except Exception as e:
+        log.warning("post video download failed %s: %s", post.get("id"), e)
+        return None

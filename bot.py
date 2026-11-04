@@ -463,34 +463,52 @@ def job_videos(chat_id, user, name):
     if not ai.enabled():
         send(chat_id, "Разбор видео делает ИИ, а он пока не подключён.")
         return
-    send(chat_id, f"Смотрю ролики @{name}: скачиваю лучшие и худшие, вырезаю кадры… это 1–2 минуты 🎬")
+    send(chat_id, f"Смотрю ролики @{name} со звуком: лучшие и худшие… это 2–3 минуты 🎬")
     typing(chat_id)
     a = get_channel(name)
     if not a["ok"] or not a.get("video_top"):
         send(chat_id, "Не нашёл у канала достаточно видео или кружков для сравнения (нужно хотя бы 2).")
         return
     parts = [ai.video_intro(compact_for_ai(a))]
-    got = 0
+    got = heard = 0
     for title, group in (("СИЛЬНЫЕ РОЛИКИ", a["video_top"]), ("СЛАБЫЕ РОЛИКИ", a["video_worst"])):
         parts.append(f"\n===== {title} =====")
         for p in group:
             typing(chat_id)
-            frames, dur = video.frames_for(p)
-            if not frames:
+            data = video.post_video_bytes(p)
+            obs = None
+            if data and ai_media.gemini_enabled():
+                try:
+                    obs = ai_media.describe_video(video.compress_for_ai(data))
+                except Exception as e:
+                    log.warning("describe channel video failed: %s", e)
+            if data:
+                try:
+                    frames, meta = video.reel_frames(data)
+                    dur = meta.get("duration", 0)
+                    frames = (frames[:1] + frames[4:5]) if obs else frames[:5]
+                except Exception:
+                    frames, dur = video.frames_for(p)
+            else:
+                frames, dur = video.frames_for(p)
+            if not frames and not obs:
                 continue
             got += 1
+            heard += bool(obs)
             length = f", длина {round(dur)} с" if dur else ""
             parts.append(
                 f"\nРолик t.me/{name}/{p['id']} ({p['type']}{length}): {p['views']} просмотров, ×{p['x_median']} к обычному посту. "
                 f"Подпись: {p['text'][:200] or '[без подписи]'}"
             )
+            if obs:
+                parts.append("Описание ролика (картинка + звук, по секундам):\n" + obs)
             for label, img in frames:
                 parts.append(f"Кадр: {label}")
                 parts.append(img)
     if got < 2:
         send(chat_id, "Не получилось скачать ролики — Telegram не отдаёт их в открытый доступ. Попробуй другой канал.")
         return
-    parts.append(ai.video_outro())
+    parts.append(ai.video_outro(heard=heard > 0))
     track(user, "video")
     typing(chat_id)
     send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
@@ -602,18 +620,35 @@ def job_reel(chat_id, user, file_id, caption):
             how = ("Ролик прикреплён целиком — ты ВИДИШЬ картинку и СЛЫШИШЬ звук (музыку, голос). "
                    "Указывай моменты по секундам.")
             prompt = ai.reel_intro(meta, caption, context, how=how) + "\n\n" + ai.reel_outro(ai_media.SOUND_BLOCK)
+            obs = None
             # если прокси откажет из-за оценки стоимости — пробуем ещё легче
-            for opts, mt in (({}, 4000), ({"height": 240, "fps": 2, "crf": 38, "abr": "32k", "max_sec": 60}, 3000)):
+            for opts in ({}, {"height": 240, "fps": 2, "crf": 38, "abr": "32k", "max_sec": 60}):
                 small = video.compress_for_ai(data, **opts)
                 log.info("gemini reel payload %d KB (%s)", len(small) // 1024, opts or "default")
                 try:
                     typing(chat_id)
-                    send(chat_id, ai_media.ask_gemini_video(small, prompt, max_tokens=mt), kb)
-                    return
+                    obs = ai_media.describe_video(small)
+                    break
                 except RuntimeError as e:
                     if "402" not in str(e):
                         raise
                     log.warning("gemini 402 at %d KB, trying lighter", len(small) // 1024)
+            if obs:
+                # Gemini — глаза и уши, Claude — продюсер, который пишет разбор
+                how2 = ("Модель, которая посмотрела и ПРОСЛУШАЛА ролик целиком, описала его по секундам:\n\n" + obs +
+                        "\n\nНиже — ключевые кадры, чтобы ты видел картинку сам. Звук оценивай по описанию.")
+                parts = [ai.reel_intro(meta, caption, context, how=how2)]
+                for i, (label, img) in enumerate(frames[:5], 1):
+                    parts.append(f"Кадр {i}: {label}")
+                    parts.append(img)
+                parts.append(ai.reel_outro(ai_media.SOUND_BLOCK))
+                typing(chat_id)
+                try:
+                    send(chat_id, ai.ask(parts, heavy=True, tag="reel"), kb)
+                except Exception as e:
+                    log.warning("claude reel failed, gemini answers directly: %s", e)
+                    send(chat_id, ai_media.ask_gemini_video(small, prompt, max_tokens=4000), kb)
+                return
         except Exception as e:
             log.warning("gemini video failed, fallback to frames: %s", e)
 
