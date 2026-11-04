@@ -52,6 +52,7 @@ PAYWALLS = {
     "compare": "Выводы ИИ по конкурентам — в подписке.",
     "reel": "Бесплатную проверку рилса ты уже использовал.",
     "insta": "Бесплатный разбор Inst / TikTok ты уже использовал.",
+    "reels": "Разбор Inst / TikTok по роликам — в подписке.",
 }
 
 pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
@@ -177,7 +178,8 @@ START = """Привет! Я ИИ-продюсер 🎬
 
 📸 Инстаграм / TikTok:
 • «📲 Проверить рилс» — пришли ролик ДО публикации, скажу, залетит ли и что поправить.
-• «📊 Разбор Inst / TikTok» — пришли скриншоты статистики, сделаю разбор и 10 идей роликов.
+• «🎞 Разбор Inst / TikTok по роликам» — пришли хиты и слабые ролики, скажу, в чём разница, и дам рецепт + 10 идей.
+• «📊 По скриншотам» — быстрый разбор статистики по скринам.
 
 Первый канал, который пришлёшь, станет твоим: разбор, идеи, план и видео — для него. Сравниваться можно с любыми каналами.
 🎁 /invite — приведи друга и получи месяц бесплатно.
@@ -188,8 +190,21 @@ HELP = START
 
 MENU_INSTA = [
     [{"text": "📲 Проверить рилс", "callback_data": "help_reel"}],
-    [{"text": "📊 Разбор Inst / TikTok по скриншотам", "callback_data": "help_insta"}],
+    [{"text": "🎞 Разбор Inst / TikTok по роликам", "callback_data": "vs_start"}],
+    [{"text": "📊 По скриншотам статистики", "callback_data": "help_insta"}],
 ]
+
+HELP_VS = """🎞 Разбор Inst / TikTok по роликам
+
+Пойму, чем твои хиты отличаются от слабых роликов, и дам рецепт + 10 идей.
+
+1. Пришли сюда 2–6 своих роликов (лучшие и слабые) — как обычное видео, можно по одному или пачкой.
+   Свои рилсы/тиктоки можно сохранить на телефон прямо из приложения.
+2. В подписи к каждому напиши просмотры: «12к», «800», «1.2м». Можно добавить «хит» или «слабый».
+3. По желанию — скрин статистики.
+4. Нажми «✅ Готово — разобрать».
+
+Смотрю каждый ролик со звуком: хук, первая секунда, трек, бит, монтаж."""
 
 HELP_REEL = """📲 Проверка рилса до публикации (смотрю со звуком)
 
@@ -812,14 +827,155 @@ def collect_photo(msg, user, file_id):
         al["timer"].start()
 
 
+VS_MAX = 6
+VS_TTL = 30 * 60
+vs_sessions: dict[int, dict] = {}  # uid -> {"items": [{"file_id","views","label","caption"}], "shots": [...], "ts", "note"}
+
+
+def parse_views(text: str | None):
+    """«12к» → 12000, «1.2м» → 1200000, «800» → 800. Плюс метка хит/слабый."""
+    t = (text or "").lower().replace(",", ".")
+    label = None
+    if re.search(r"хит|залет|топ|лучш|вирус", t):
+        label = "хит"
+    elif re.search(r"слаб|не зашел|не зашёл|флоп|плох|провал", t):
+        label = "слабый"
+    m = re.search(r"(\d+(?:\.\d+)?)\s*(млн|м|m|тыс|к|k)?\b", t)
+    views = None
+    if m:
+        num, suf = float(m.group(1)), (m.group(2) or "")
+        mult = 1_000_000 if suf in ("млн", "м", "m") else 1000 if suf in ("тыс", "к", "k") else 1
+        views = int(num * mult)
+    return views, label
+
+
+def vs_session(uid):
+    sess = vs_sessions.get(uid)
+    if sess and time.time() - sess["ts"] > VS_TTL:
+        vs_sessions.pop(uid, None)
+        return None
+    return sess
+
+
+VS_DONE_KB = [[{"text": "✅ Готово — разобрать", "callback_data": "vs_go"}], [{"text": "Отмена", "callback_data": "vs_cancel"}]]
+
+
+def vs_add(msg, user, vid=None, shot=None):
+    chat_id, uid = msg["chat"]["id"], user["id"]
+    sess = vs_session(uid)
+    sess["ts"] = time.time()
+    if shot:
+        sess["shots"].append(shot)
+        send(chat_id, "Скрин статистики принял 📊 Ещё ролики или «Готово».", VS_DONE_KB)
+        return
+    if len(sess["items"]) >= VS_MAX:
+        send(chat_id, f"Максимум {VS_MAX} роликов — жми «Готово».", VS_DONE_KB)
+        return
+    caption = (msg.get("caption") or "").strip()
+    views, label = parse_views(caption)
+    sess["items"].append({"file_id": vid["file_id"], "views": views, "label": label, "caption": caption})
+    n = len(sess["items"])
+    info = (f"{views:,} просмотров".replace(",", " ") if views else "просмотры не указаны") + (f", {label}" if label else "")
+    send(chat_id, f"Ролик {n} принял ({info}). " + ("Пришли ещё или жми «Готово»." if n >= 2 else "Пришли ещё хотя бы один."),
+         VS_DONE_KB if n >= 2 else None)
+
+
+def vs_go(chat_id, user):
+    sess = vs_session(user["id"])
+    if not sess or len(sess["items"]) < 2:
+        send(chat_id, "Нужно хотя бы 2 ролика — пришли ещё.")
+        return
+    if not any(it["views"] or it["label"] for it in sess["items"]):
+        sess["await_views"] = True
+        send(chat_id, f"Чтобы сравнить, напиши просмотры роликов одним сообщением по порядку ({len(sess['items'])} шт.), например: 12к, 3к, 800")
+        return
+    vs_sessions.pop(user["id"], None)
+    run_job(chat_id, user, job_reels_compare, sess)
+
+
+def job_reels_compare(chat_id, user, sess):
+    if not ai.enabled():
+        send(chat_id, "Разбор делает ИИ, а он пока не подключён.")
+        return
+    if not allow(chat_id, user, "reels"):
+        return
+    items = sess["items"]
+    send(chat_id, f"Смотрю {len(items)} ролик(а/ов) со звуком и сравниваю хиты со слабыми… это 2–3 минуты 🎞")
+    # порядок: по просмотрам (метки «хит/слабый» — если просмотров нет)
+    def score(it):
+        if it["views"] is not None:
+            return it["views"]
+        return {"хит": 10**12, "слабый": -1}.get(it["label"], 0)
+    items = sorted(items, key=score, reverse=True)
+    n_strong = max(1, (len(items) + 1) // 2)
+    parts = [ai.reels_compare_intro(sess.get("note"))]
+    got = 0
+    for idx, it in enumerate(items, 1):
+        typing(chat_id)
+        group = "СИЛЬНЫЙ" if (it["label"] == "хит" or (it["label"] != "слабый" and idx <= n_strong)) else "СЛАБЫЙ"
+        try:
+            data = tg_download(it["file_id"])
+        except Exception as e:
+            log.warning("vs download failed: %s", e)
+            continue
+        obs = None
+        if ai_media.gemini_enabled():
+            try:
+                obs = ai_media.describe_video(video.compress_for_ai(data))
+            except Exception as e:
+                log.warning("vs describe failed: %s", e)
+        try:
+            frames, meta = video.reel_frames(data)
+        except Exception:
+            frames, meta = [], {}
+        if not obs and not frames:
+            continue
+        got += 1
+        views = f"{it['views']:,}".replace(",", " ") + " просмотров" if it["views"] else "просмотры не указаны"
+        parts.append(f"\n===== Ролик {idx} — {group} ({views}{', метка автора: ' + it['label'] if it['label'] else ''}, "
+                     f"длина {meta.get('duration', '?')} с) =====")
+        if it["caption"]:
+            parts.append("Подпись автора: " + it["caption"][:200])
+        if obs:
+            parts.append("Описание (картинка + звук):\n" + obs)
+        for label, img in (frames[:1] + frames[4:5] if obs else frames[:4]):
+            parts.append(f"Кадр: {label}")
+            parts.append(img)
+    if got < 2:
+        send(chat_id, "Не получилось прочитать ролики 😕 Попробуй прислать их ещё раз как обычное видео.")
+        return
+    for i, fid in enumerate(sess.get("shots", [])[:3], 1):
+        try:
+            parts.append(f"Скриншот статистики {i}:")
+            parts.append(video.to_jpeg(tg_download(fid)))
+        except Exception:
+            pass
+    parts.append(ai.reels_compare_outro())
+    track(user, "reels")
+    typing(chat_id)
+    send(chat_id, ai.ask(parts, heavy=True, tag="reels", max_tokens=5000),
+         [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]])
+
+
 def handle_media(msg, user) -> bool:
-    """Видео → проверка рилса, картинки → разбор Инсты. True, если сообщение обработано."""
+    """Видео → проверка рилса (или в сессию разбора роликов), картинки → разбор по скринам. True, если обработано."""
     chat_id = msg["chat"]["id"]
     vid = msg.get("video") or msg.get("video_note") or msg.get("animation")
     doc = msg.get("document") or {}
     mime = doc.get("mime_type", "")
     if not vid and mime.startswith("video/"):
         vid = doc
+    if vs_session(user["id"]):
+        if vid:
+            if (vid.get("file_size") or 0) > TG_FILE_LIMIT:
+                send(chat_id, "Этот ролик больше 20 МБ — пришли его как обычное видео (не файлом), Telegram сожмёт.")
+                return True
+            vs_add(msg, user, vid=vid)
+            return True
+        img = msg["photo"][-1]["file_id"] if msg.get("photo") else (doc["file_id"] if mime.startswith("image/") else None)
+        if img:
+            vs_add(msg, user, shot=img)
+            return True
     if vid:
         if (vid.get("file_size") or 0) > TG_FILE_LIMIT:
             send(chat_id, "Видео больше 20 МБ — Telegram не даёт ботам скачивать такие. Пришли его как обычное видео (не файлом) — Telegram сожмёт, или укороти/сожми ролик.")
@@ -892,6 +1048,10 @@ def handle_message(msg: dict):
         send(chat_id, HELP_REEL)
         return
     if cmd == "/insta":
+        vs_sessions[user["id"]] = {"items": [], "shots": [], "ts": time.time(), "note": None}
+        send(chat_id, HELP_VS)
+        return
+    if cmd == "/shots":
         send(chat_id, HELP_INSTA)
         return
     if cmd in ("/sub", "/pay"):
@@ -918,7 +1078,7 @@ def handle_message(msg: dict):
         return
     if cmd == "/stats" and user["id"] in ADMIN_IDS:
         st = storage.all_stats()
-        acts = ("report", "compare", "plan", "video", "ideas", "reel", "insta")
+        acts = ("report", "compare", "plan", "video", "ideas", "reel", "insta", "reels")
         total = sum(int(u.get(k, 0)) for u in st.values() for k in acts)
         day_ago = time.time() - 86400
         active = sum(1 for u in st.values() if float(u.get("last", 0)) > day_ago)
@@ -950,6 +1110,23 @@ def handle_message(msg: dict):
             send(chat_id, "Сначала пришли канал, или так: /plan @канал")
             return
         ask_week(chat_id, user, name)
+        return
+
+    sess = vs_session(user["id"])
+    if not cmd and sess and sess.get("await_views"):
+        nums = [parse_views(x)[0] for x in re.split(r"[,;\n]+", text) if x.strip()]
+        nums = [v for v in nums if v is not None]
+        if len(nums) < len(sess["items"]):
+            send(chat_id, f"Нужно {len(sess['items'])} чисел через запятую, например: 12к, 3к, 800")
+            return
+        for it, v in zip(sess["items"], nums):
+            it["views"] = v
+        sess["await_views"] = False
+        vs_go(chat_id, user)
+        return
+    if not cmd and sess and not chans and text:
+        sess["note"] = text[:300]
+        send(chat_id, "Записал комментарий. Пришли ролики или жми «Готово».", VS_DONE_KB if len(sess["items"]) >= 2 else None)
         return
 
     if not cmd and user["id"] in pending_plan and not chans:
@@ -1007,6 +1184,14 @@ def handle_callback(cb: dict):
         ask_week(chat_id, user, data[5:])
     elif data == "help_reel":
         send(chat_id, HELP_REEL)
+    elif data == "vs_start":
+        vs_sessions[user["id"]] = {"items": [], "shots": [], "ts": time.time(), "note": None}
+        send(chat_id, HELP_VS)
+    elif data == "vs_go":
+        vs_go(chat_id, user)
+    elif data == "vs_cancel":
+        vs_sessions.pop(user["id"], None)
+        send(chat_id, "Ок, отменил. Ролики, которые пришлёшь дальше, буду проверять по одному 📲")
     elif data == "help_insta":
         send(chat_id, HELP_INSTA)
     elif data == "pay":
@@ -1053,7 +1238,8 @@ def set_commands():
             {"command": "ideas", "description": "Идеи, что снять (можно с темой)"},
             {"command": "plan", "description": "Контент-план на неделю"},
             {"command": "reel", "description": "Проверить рилс до публикации"},
-            {"command": "insta", "description": "Разбор Inst / TikTok по скриншотам"},
+            {"command": "insta", "description": "Разбор Inst / TikTok по роликам"},
+            {"command": "shots", "description": "Разбор по скриншотам статистики"},
             {"command": "mychannel", "description": "Мой канал"},
             {"command": "sub", "description": "Подписка"},
             {"command": "invite", "description": "Пригласить друга — месяц в подарок"},
