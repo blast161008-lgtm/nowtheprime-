@@ -34,6 +34,7 @@ DAILY_LIMIT = int(os.getenv("DAILY_LIMIT", "5"))
 ADMIN_IDS = {int(x) for x in re.findall(r"\d+", os.getenv("ADMIN_IDS", ""))}
 DATA_DIR = os.getenv("DATA_DIR", "data")
 MAX_RIVALS = 3
+HOME_CHANGE_DAYS = int(os.getenv("HOME_CHANGE_DAYS", "30"))
 
 pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
 busy: set[int] = set()
@@ -151,6 +152,7 @@ START = """Привет! Я ИИ-продюсер 🎬
 • «🎬 Разобрать видео» — посмотрю кадры твоих лучших и худших роликов и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
+Первый канал, который пришлёшь, станет твоим: разбор, идеи, план и видео — для него. Сравниваться можно с любыми каналами.
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
 
 HELP = START
@@ -167,12 +169,12 @@ def channel_keyboard(name: str):
 
 # ---------------- сценарии ----------------
 
-def run_job(chat_id: int, user: dict, fn, *args):
+def run_job(chat_id: int, user: dict, fn, *args, quota: bool = True):
     uid = user["id"]
     if uid in busy:
         send(chat_id, "Ещё разбираю прошлый запрос — секунду ⏳")
         return
-    if not take_quota(uid):
+    if quota and not take_quota(uid):
         send(chat_id, f"На сегодня лимит {DAILY_LIMIT} разборов закончился. Возвращайся завтра 🙌")
         return
     busy.add(uid)
@@ -191,6 +193,86 @@ def run_job(chat_id: int, user: dict, fn, *args):
     pool.submit(wrapped)
 
 
+# ---------------- свой канал ----------------
+
+def is_admin(user) -> bool:
+    return user["id"] in ADMIN_IDS
+
+
+def home_of(user) -> str | None:
+    if is_admin(user):
+        return last_channel.get(user["id"])
+    return storage.get_home(user["id"])[0]
+
+
+def claim_home(user, name) -> str:
+    """Возвращает свой канал пользователя; если его ещё нет — назначает `name`."""
+    if is_admin(user):
+        last_channel[user["id"]] = name
+        return name
+    home, _ = storage.get_home(user["id"])
+    if not home:
+        storage.set_home(user["id"], name, time.time())
+        return name
+    return home
+
+
+def same(a, b) -> bool:
+    return bool(a and b) and a.lower() == b.lower()
+
+
+def guard_own(chat_id, user, name) -> bool:
+    """Идеи, планы и разбор видео — только для своего канала."""
+    if is_admin(user):
+        return True
+    home = home_of(user)
+    if not home:
+        claim_home(user, name)
+        return True
+    if same(home, name):
+        return True
+    send(
+        chat_id,
+        f"Идеи, планы и разбор видео — только для твоего канала @{home}.\n"
+        f"С @{name} можно сравниться: /compare @{name}\nСменить свой канал: /mychannel",
+    )
+    return False
+
+
+def change_home(chat_id, user, name):
+    home, ts = storage.get_home(user["id"])
+    if same(home, name):
+        send(chat_id, f"@{name} и так твой канал 👍", channel_keyboard(name))
+        return
+    wait = ts + HOME_CHANGE_DAYS * 86400 - time.time()
+    if home and wait > 0 and not is_admin(user):
+        when = time.strftime("%d.%m", time.localtime(ts + HOME_CHANGE_DAYS * 86400))
+        send(chat_id, f"Свой канал можно менять раз в {HOME_CHANGE_DAYS} дней. Сейчас это @{home}, сменить можно с {when}.")
+        return
+    storage.set_home(user["id"], name, time.time())
+    send(chat_id, f"Готово: теперь твой канал — @{name}.")
+    run_job(chat_id, user, job_report, name)
+
+
+def job_foreign(chat_id, user, name, home):
+    """Чужой канал: только цифры (без ИИ) и предложение сравниться."""
+    send(chat_id, f"Смотрю @{name}… ⏳")
+    a = get_channel(name)
+    if not a["ok"]:
+        send(chat_id, f"У @{name} не нашёл постов с просмотрами.")
+        return
+    track(user, "foreign")
+    send(
+        chat_id,
+        stats_text(a) + f"\n\nЭто не твой канал, поэтому только цифры. Разбор, идеи и план — для @{home}.\n"
+        "Хочешь понять, что у них забрать себе, — жми «Сравнить».",
+        [
+            [{"text": f"⚔️ Сравнить с @{home}", "callback_data": f"cmpw:{name}"}],
+            [{"text": "🔄 Сделать это моим каналом", "callback_data": f"home:{name}"}],
+        ],
+    )
+
+
 def job_report(chat_id, user, name):
     send(chat_id, f"Собираю посты @{name} за последние полгода и считаю… до минуты ⏳")
     typing(chat_id)
@@ -198,7 +280,6 @@ def job_report(chat_id, user, name):
     if not a["ok"]:
         send(chat_id, f"У @{name} не нашёл постов с просмотрами — нечего анализировать.")
         return
-    last_channel[user["id"]] = name
     track(user, "report")
     if not ai.enabled():
         send(chat_id, stats_text(a) + "\n\n(ИИ-разбор пока выключен — нет ключа)", channel_keyboard(name))
@@ -210,6 +291,14 @@ def job_report(chat_id, user, name):
 
 
 def job_compare(chat_id, user, mine, rivals):
+    if not is_admin(user):
+        home = claim_home(user, mine)
+        if not same(home, mine):
+            rivals = [r for r in [mine] + list(rivals) if not same(r, home)][:MAX_RIVALS]
+            mine = home
+        if not rivals:
+            send(chat_id, "Пришли канал конкурента, с которым сравнить.")
+            return
     send(chat_id, f"Сравниваю @{mine} с {', '.join('@' + r for r in rivals)}… это до минуты ⏳")
     typing(chat_id)
     a_mine = get_channel(mine)
@@ -229,7 +318,6 @@ def job_compare(chat_id, user, mine, rivals):
     if not a_mine["ok"] or not a_riv:
         send(chat_id, "Не хватает данных для сравнения.")
         return
-    last_channel[user["id"]] = mine
     track(user, "compare")
     table = ["Коротко в цифрах (медиана просмотров · постов в неделю):"]
     for x in [a_mine] + a_riv:
@@ -245,6 +333,8 @@ def job_compare(chat_id, user, mine, rivals):
 
 
 def job_videos(chat_id, user, name):
+    if not guard_own(chat_id, user, name):
+        return
     if not ai.enabled():
         send(chat_id, "Разбор видео делает ИИ, а он пока не подключён.")
         return
@@ -285,6 +375,8 @@ past_ideas: dict[tuple[int, str], list[str]] = {}
 
 
 def job_ideas(chat_id, user, name, focus=None):
+    if not guard_own(chat_id, user, name):
+        return
     if not ai.enabled():
         send(chat_id, "Идеи придумывает ИИ, а он пока не подключён.")
         return
@@ -315,6 +407,8 @@ pending_plan: dict[int, str] = {}
 
 
 def ask_week(chat_id, user, name):
+    if not guard_own(chat_id, user, name):
+        return
     pending_plan[user["id"]] = name
     send(
         chat_id,
@@ -325,6 +419,8 @@ def ask_week(chat_id, user, name):
 
 
 def job_plan(chat_id, user, name, week=None):
+    if not guard_own(chat_id, user, name):
+        return
     if not ai.enabled():
         send(chat_id, "План на неделю делает ИИ, а он пока не подключён.")
         return
@@ -367,7 +463,7 @@ def handle_message(msg: dict):
 
     if cmd == "/start":
         track(user, "start")
-        mine = last_channel.get(user["id"])
+        mine = home_of(user)
         if mine:
             send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine))
         else:
@@ -375,6 +471,20 @@ def handle_message(msg: dict):
         return
     if cmd == "/help":
         send(chat_id, HELP)
+        return
+    if cmd == "/mychannel":
+        home, ts = storage.get_home(user["id"])
+        if not home:
+            send(chat_id, "Своего канала пока нет. Пришли @ник канала — первый присланный станет твоим.")
+            return
+        nxt = ts + HOME_CHANGE_DAYS * 86400
+        when = "уже сейчас" if nxt <= time.time() else "с " + time.strftime("%d.%m", time.localtime(nxt))
+        send(
+            chat_id,
+            f"Твой канал: @{home}\nРазбор, идеи, план и видео работают для него. Сравниваться можно с кем угодно.\n\n"
+            f"Сменить свой канал можно раз в {HOME_CHANGE_DAYS} дней ({when}): пришли новый канал и нажми «Сделать это моим каналом».",
+            channel_keyboard(home),
+        )
         return
     if cmd == "/stats" and user["id"] in ADMIN_IDS:
         st = storage.all_stats()
@@ -396,15 +506,16 @@ def handle_message(msg: dict):
     if cmd == "/ideas":
         rest = text[len(text.split()[0]):]
         focus = re.sub(r"(?:https?://)?(?:t\.me|telegram\.me)/(?:s/)?[A-Za-z0-9_]+|@[A-Za-z0-9_]+", "", rest).strip() or None
-        name = next((c for c in chans if "@" + c in rest or "t.me/" + c in rest), None) or last_channel.get(user["id"])
+        name = next((c for c in chans if "@" + c in rest or "t.me/" + c in rest), None) or home_of(user)
         if not name:
             send(chat_id, "Сначала пришли свой канал, или так: /ideas @канал тема")
             return
-        run_job(chat_id, user, job_ideas, name, focus[:60] if focus else None)
+        if guard_own(chat_id, user, name):
+            run_job(chat_id, user, job_ideas, name, focus[:60] if focus else None)
         return
 
     if cmd == "/plan":
-        name = chans[0] if chans else last_channel.get(user["id"])
+        name = chans[0] if chans else home_of(user)
         if not name:
             send(chat_id, "Сначала пришли канал, или так: /plan @канал")
             return
@@ -422,8 +533,8 @@ def handle_message(msg: dict):
             run_job(chat_id, user, job_compare, mine, rivals)
             return
 
-    if cmd == "/compare" and len(chans) == 1 and last_channel.get(user["id"]):
-        chans = [last_channel[user["id"]]] + chans
+    if cmd == "/compare" and len(chans) == 1 and home_of(user) and not same(home_of(user), chans[0]):
+        chans = [home_of(user)] + chans
 
     if cmd == "/compare" or (not cmd and len(chans) >= 2):
         if len(chans) < 2:
@@ -438,7 +549,12 @@ def handle_message(msg: dict):
     if not chans:
         send(chat_id, "Не вижу канала. Пришли @ник или ссылку t.me/...")
         return
-    run_job(chat_id, user, job_report, chans[0])
+    name = chans[0]
+    home = claim_home(user, name)
+    if same(home, name):
+        run_job(chat_id, user, job_report, name)
+    else:
+        run_job(chat_id, user, job_foreign, name, home, quota=False)
 
 
 def handle_callback(cb: dict):
@@ -449,14 +565,22 @@ def handle_callback(cb: dict):
     if data.startswith("idea:"):
         rest = data[5:]
         name, _, focus = rest.partition("|")
-        run_job(chat_id, user, job_ideas, name, focus or None)
+        if guard_own(chat_id, user, name):
+            run_job(chat_id, user, job_ideas, name, focus or None)
     elif data.startswith("vid:"):
-        run_job(chat_id, user, job_videos, data[4:])
+        if guard_own(chat_id, user, data[4:]):
+            run_job(chat_id, user, job_videos, data[4:])
     elif data.startswith("plan0:"):
         pending_plan.pop(user["id"], None)
         run_job(chat_id, user, job_plan, data[6:], None)
     elif data.startswith("plan:"):
         ask_week(chat_id, user, data[5:])
+    elif data.startswith("cmpw:"):
+        home = home_of(user)
+        if home:
+            run_job(chat_id, user, job_compare, home, [data[5:]])
+    elif data.startswith("home:"):
+        change_home(chat_id, user, data[5:])
     elif data.startswith("cmp:"):
         name = data[4:]
         pending_compare[user["id"]] = name
@@ -483,6 +607,7 @@ def set_commands():
             {"command": "compare", "description": "Сравнить с конкурентами"},
             {"command": "ideas", "description": "Идеи, что снять (можно с темой)"},
             {"command": "plan", "description": "Контент-план на неделю"},
+            {"command": "mychannel", "description": "Мой канал"},
         ],
     )
 

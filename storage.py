@@ -149,6 +149,19 @@ def set_channel(uid: int, name: str):
     _safe("SET", f"u:{uid}:chan", name)
 
 
+def get_home(uid: int) -> tuple[str | None, float]:
+    """Свой канал пользователя и время, когда его назначили."""
+    name = _safe("GET", f"u:{uid}:home")
+    ts = _safe("GET", f"u:{uid}:home_ts")
+    return name, float(ts or 0)
+
+
+def set_home(uid: int, name: str, ts: float):
+    _safe("SET", f"u:{uid}:home", name)
+    _safe("SET", f"u:{uid}:home_ts", int(ts))
+    set_channel(uid, name)
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
