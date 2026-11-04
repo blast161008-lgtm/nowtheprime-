@@ -7,8 +7,12 @@ AI_MODEL    = модель (по умолчанию claude-sonnet-5-5 для ant
 AI_BASE_URL = для openai-совместимых, напр. https://openrouter.ai/api/v1
 """
 import json
+import logging
 import os
+import urllib.error
 import urllib.request
+
+log = logging.getLogger("ai")
 
 SYSTEM = (
     "Ты — продюсер контента для авторов Telegram-каналов. Пишешь по-русски, просто и по делу, "
@@ -32,10 +36,26 @@ def _post(url, headers, payload, timeout=120):
 
 
 def ask(prompt: str, max_tokens: int = 1800) -> str:
+    """AI_MODEL может быть списком через запятую: если модель недоступна, пробуем следующую."""
+    default = "claude-sonnet-5-5" if os.getenv("AI_PROVIDER", "anthropic").lower() == "anthropic" else "gpt-4o-mini"
+    models = [m.strip() for m in os.getenv("AI_MODEL", default).split(",") if m.strip()]
+    last = None
+    for model in models:
+        try:
+            return _ask_one(prompt, max_tokens, model)
+        except urllib.error.HTTPError as e:
+            body = e.read()[:300]
+            log.warning("model %s failed %s: %s", model, e.code, body)
+            last = e
+            if e.code in (401, 402, 403):
+                break
+    raise last or RuntimeError("no models")
+
+
+def _ask_one(prompt: str, max_tokens: int, model: str) -> str:
     provider = os.getenv("AI_PROVIDER", "anthropic").lower()
     key = os.environ["AI_API_KEY"]
     if provider == "anthropic":
-        model = os.getenv("AI_MODEL", "claude-sonnet-5-5")
         data = _post(
             os.getenv("AI_BASE_URL", "https://api.anthropic.com") + "/v1/messages",
             {"x-api-key": key, "anthropic-version": "2023-06-01"},
@@ -48,7 +68,6 @@ def ask(prompt: str, max_tokens: int = 1800) -> str:
         )
         return "".join(b.get("text", "") for b in data.get("content", [])).strip()
 
-    model = os.getenv("AI_MODEL") or "gpt-4o-mini"
     base = os.getenv("AI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
     data = _post(
         base + "/chat/completions",
