@@ -19,7 +19,7 @@ Telegram-бот для авторов. Разбирает публичный Tel
 
 ## Переменные окружения (Render)
 `TELEGRAM_BOT_TOKEN`, `AI_API_KEY`, `AI_PROVIDER=anthropic`, `AI_BASE_URL=https://api.proxyapi.ru`,
-`AI_MODEL=claude-sonnet-5-5,claude-sonnet-4-5,claude-haiku-4-5` (тексты — с 2026-11-05 Sonnet ради качества), `AI_MODEL_HEAVY=claude-sonnet-5-5,claude-sonnet-4-5,claude-haiku-4-5` (кадры/скриншоты),
+`AI_MODEL=claude-haiku-4-5,claude-sonnet-4-5` (дешёвая: «ещё идеи» и повторы), `AI_MODEL_HEAVY=claude-sonnet-5-5,claude-sonnet-4-5,claude-haiku-4-5` (кадры/скриншоты),
 `GEMINI_MODEL` (по умолчанию `gemini-3.8-flash,gemini-3.7-flash,gemini-3.5-flash,gemini-3-flash-preview`), `VIDEO_AI=gemini`,
 `ADMIN_IDS=1144055415`, `DAILY_LIMIT=8`, `PAYWALL=off`, `PAY_DETAILS=+7 913 581-99-69, Альфа-Банк, Никита Л.`, `REDIS_URL`, `PYTHON_VERSION=3.12.7`.
 Необязательные: `PRICE` (299), `HOME_CHANGE_DAYS` (30), `STT_MODEL`, `WEBHOOK_SECRET`.
@@ -58,10 +58,11 @@ Telegram-бот для авторов. Разбирает публичный Tel
 ## Принцип качества (решение Никиты 2026-11-05: «не дёшево, а действительно полезно и качественно»)
 - Gemini = глаза и уши: смотрит видео целиком со звуком и описывает по секундам (`ai_media.describe_video`).
 - Claude Sonnet = мозг продюсера: по описанию + ключевым кадрам пишет разбор и советы (рилс, видео канала).
-- Тексты (разбор, идеи, план, сравнение) — Sonnet. Скриншоты — Sonnet.
+- Тексты: ПЕРВЫЙ за 7 дней разбор/идеи/план/сравнение (на пользователя+канал) — Sonnet (`AI_MODEL_HEAVY`); «ещё идеи» и повторы — Haiku (`AI_MODEL`). Метка в Redis `u:<id>:seen:<task>:<key>`.
+- Рилс, видео канала, скриншоты — всегда Sonnet (+ Gemini для видео).
 
 ## Расходы (ProxyAPI)
-- Текстовый разбор, идеи, план, сравнение на Sonnet: ~6–8 ₽.
+- Первый разбор/идеи/план/сравнение (Sonnet): ~6–8 ₽; «ещё идеи» и повторы (Haiku): ~2 ₽.
 - Разбор видео канала или скриншотов на Sonnet: ~8–12 ₽.
 - Рилс: Gemini-описание ~1 ₽ + Sonnet-разбор ~4–5 ₽.
 - Видео канала: 6 описаний Gemini ~5 ₽ + Sonnet ~6 ₽.

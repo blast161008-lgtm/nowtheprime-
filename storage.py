@@ -178,6 +178,14 @@ def use_free(uid, kind: str):
     _safe("SET", f"u:{uid}:free:{kind}", free_used(uid, kind) + 1)
 
 
+def first_time(uid, task: str, key: str, ts: float, days: int = 7) -> bool:
+    """True, если пользователь делает это (задача + канал/тема) впервые за `days` дней. Отмечает выполнение."""
+    k = f"u:{uid}:seen:{task}:{key.lower()}"
+    last = float(_safe("GET", k) or 0)
+    _safe("SET", k, int(ts))
+    return ts - last > days * 86400
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]

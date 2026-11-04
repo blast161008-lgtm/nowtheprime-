@@ -129,6 +129,11 @@ ai_cache: dict[tuple, tuple[float, str]] = {}
 AI_CACHE_TTL = 6 * 3600
 
 
+def first(user, task, key) -> bool:
+    """Первый раз за неделю — лучшая модель (Sonnet), повторы — дешёвая."""
+    return storage.first_time(user["id"], task, key, time.time())
+
+
 def cached_ai(key: tuple, make_prompt, **kw) -> str:
     """Один и тот же разбор в течение 6 часов не оплачиваем повторно."""
     with lock:
@@ -411,7 +416,8 @@ def job_report(chat_id, user, name):
     if not allow(chat_id, user, "report"):
         return
     typing(chat_id)
-    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(compact_for_ai(a)))
+    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(compact_for_ai(a)),
+                     heavy=first(user, "report", name))
     send(chat_id, text, channel_keyboard(name))
 
 
@@ -453,7 +459,8 @@ def job_compare(chat_id, user, mine, rivals):
         return
     typing(chat_id)
     key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
-    text = cached_ai(key, lambda: ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=5000)
+    text = cached_ai(key, lambda: ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]),
+                     max_tokens=5000, heavy=first(user, "compare", "|".join(key[1:])))
     send(chat_id, text, [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]])
 
 
@@ -532,7 +539,8 @@ def job_ideas(chat_id, user, name, focus=None):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     previous = "\n".join(prev)[-6000:] or None
-    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous), tag="ideas")
+    heavy = not prev and first(user, "ideas", name + "|" + (focus or ""))  # «ещё идеи» — всегда дешёвая модель
+    text = ai.ask(ai.ideas_prompt(compact_for_ai(a), focus, previous), tag="ideas", heavy=heavy)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
     past_ideas[key] = prev + (titles or [text[:1500]])
     track(user, "ideas")
@@ -574,7 +582,8 @@ def job_plan(chat_id, user, name, week=None):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     track(user, "plan")
-    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()), lambda: ai.plan_prompt(compact_for_ai(a), week)))
+    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()), lambda: ai.plan_prompt(compact_for_ai(a), week),
+                            heavy=first(user, "plan", name)))
 
 
 # ---------------- Инстаграм / рилсы ----------------
