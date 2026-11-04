@@ -35,7 +35,7 @@ def _post(url, headers, payload, timeout=120):
         return json.loads(r.read().decode())
 
 
-def ask(prompt: str, max_tokens: int = 1800) -> str:
+def ask(prompt: str, max_tokens: int = 4000) -> str:
     """AI_MODEL может быть списком через запятую: если модель недоступна, пробуем следующую."""
     default = "claude-sonnet-5-5" if os.getenv("AI_PROVIDER", "anthropic").lower() == "anthropic" else "gpt-4o-mini"
     models = [m.strip() for m in os.getenv("AI_MODEL", default).split(",") if m.strip()]

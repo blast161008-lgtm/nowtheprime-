@@ -219,7 +219,7 @@ def job_compare(chat_id, user, mine, rivals):
     if not ai.enabled():
         return
     typing(chat_id)
-    text = ai.ask(ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=2200)
+    text = ai.ask(ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=5000)
     send(chat_id, text, [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]])
 
 
