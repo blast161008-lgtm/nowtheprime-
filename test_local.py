@@ -111,6 +111,8 @@ msg("https://t.me/testchan")
 assert any("Подписчиков: 12.4K" in t for t in texts()), texts()
 assert "ИИ-ответ" in texts()[-1]
 msg("/plan")
+assert "Что у тебя происходит" in texts()[-1]
+msg("ничего")
 assert "ИИ-ответ" in texts()[-1]
 msg("/compare @testchan @rival1 @nonexistent")
 assert any("Не смог открыть: @nonexistent" in t for t in texts())

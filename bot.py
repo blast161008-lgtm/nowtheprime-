@@ -313,7 +313,20 @@ def job_ideas(chat_id, user, name, focus=None):
     )
 
 
-def job_plan(chat_id, user, name):
+pending_plan: dict[int, str] = {}
+
+
+def ask_week(chat_id, user, name):
+    pending_plan[user["id"]] = name
+    send(
+        chat_id,
+        "Что у тебя происходит на этой неделе? Напиши коротко — например: «класс в субботу 18:00, 1500₽» или «дроп футболок в пятницу».\n\n"
+        "Если ничего продавать и анонсировать не нужно — жми кнопку, сделаю план из обычного контента.",
+        [[{"text": "Ничего особенного", "callback_data": f"plan0:{name}"}]],
+    )
+
+
+def job_plan(chat_id, user, name, week=None):
     if not ai.enabled():
         send(chat_id, "План на неделю делает ИИ, а он пока не подключён.")
         return
@@ -324,7 +337,7 @@ def job_plan(chat_id, user, name):
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     track(user, "plan")
-    send(chat_id, cached_ai(("plan", name.lower()), lambda: ai.plan_prompt(compact_for_ai(a))))
+    send(chat_id, cached_ai(("plan", name.lower(), (week or "").lower()), lambda: ai.plan_prompt(compact_for_ai(a), week)))
 
 
 # ---------------- роутинг ----------------
@@ -388,7 +401,11 @@ def handle_message(msg: dict):
         if not name:
             send(chat_id, "Сначала пришли канал, или так: /plan @канал")
             return
-        run_job(chat_id, user, job_plan, name)
+        ask_week(chat_id, user, name)
+        return
+
+    if not cmd and user["id"] in pending_plan and not chans:
+        run_job(chat_id, user, job_plan, pending_plan.pop(user["id"]), text[:400])
         return
 
     if not cmd and chans and user["id"] in pending_compare:
@@ -428,8 +445,11 @@ def handle_callback(cb: dict):
         run_job(chat_id, user, job_ideas, name, focus or None)
     elif data.startswith("vid:"):
         run_job(chat_id, user, job_videos, data[4:])
+    elif data.startswith("plan0:"):
+        pending_plan.pop(user["id"], None)
+        run_job(chat_id, user, job_plan, data[6:], None)
     elif data.startswith("plan:"):
-        run_job(chat_id, user, job_plan, data[5:])
+        ask_week(chat_id, user, data[5:])
     elif data.startswith("cmp:"):
         name = data[4:]
         pending_compare[user["id"]] = name
