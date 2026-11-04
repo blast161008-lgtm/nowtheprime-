@@ -37,9 +37,13 @@ def _payload(variant: str, video_b64: str, prompt: str, max_tokens: int) -> dict
     }
 
 
-def _call(variant, video, prompt, max_tokens):
+def _models():
+    return [m.strip() for m in os.getenv(
+        "GEMINI_MODEL", "gemini-3.8-flash,gemini-3.7-flash,gemini-3.5-flash,gemini-3-flash-preview").split(",") if m.strip()]
+
+
+def _call(variant, video, prompt, max_tokens, model):
     base = os.getenv("GEMINI_BASE_URL") or os.getenv("AI_BASE_URL", "https://generativelanguage.googleapis.com")
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     data = _post(
         f"{base.rstrip('/')}/v1beta/models/{model}:generateContent",
         {"x-goog-api-key": os.environ["AI_API_KEY"]},
@@ -57,19 +61,28 @@ def _call(variant, video, prompt, max_tokens):
 
 
 def ask_gemini_video(video: bytes, prompt: str, max_tokens: int = 6000) -> str:
-    """Отдаёт ролик целиком (картинка + звук) модели Gemini. Пробует форматы запроса, запоминает рабочий."""
+    """Отдаёт ролик целиком (картинка + звук) модели Gemini. Перебирает модели и форматы, запоминает рабочие."""
     global _preferred
-    order = ([_preferred] if _preferred else []) + [v for v in _VARIANTS if v != _preferred]
+    combos = [(m, v) for m in _models() for v in _VARIANTS]
+    if _preferred in combos:
+        combos.remove(_preferred)
+        combos.insert(0, _preferred)
     last = None
-    for v in order:
+    dead_models = set()
+    for model, v in combos:
+        if model in dead_models:
+            continue
         try:
-            text = _call(v, video, prompt, max_tokens)
-            _preferred = v
+            text = _call(v, video, prompt, max_tokens, model)
+            _preferred = (model, v)
             return text
         except urllib.error.HTTPError as e:
             body = e.read()[:600].decode(errors="ignore")
-            log.warning("gemini variant=%s HTTP %s: %s", v, e.code, body)
+            log.warning("gemini model=%s variant=%s HTTP %s: %s", model, v, e.code, body)
             last = RuntimeError(f"gemini HTTP {e.code}: {body[:200]}")
+            if "not supported" in body.lower() or "not found" in body.lower() or e.code == 404:
+                dead_models.add(model)
+                continue
             if e.code not in (400, 422):
                 break
     raise last or RuntimeError("gemini failed")
