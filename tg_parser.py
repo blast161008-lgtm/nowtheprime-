@@ -4,9 +4,10 @@
 """
 import html
 import re
+import time
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 UA = "Mozilla/5.0 (compatible; AIProducerBot/1.0)"
 
@@ -105,6 +106,10 @@ def parse_page(page: str) -> dict:
             except ValueError:
                 dt = None
 
+        vid = re.search(r'<video[^>]+src="([^"]+)"', chunk)
+        thumb = re.search(
+            r'(?:video_thumb|roundvideo_thumb|photo_wrap)[^>]*background-image:url\(\'([^\']+)\'\)', chunk
+        )
         is_forward = "tgme_widget_message_forwarded_from" in chunk
         info["posts"].append(
             {
@@ -115,6 +120,8 @@ def parse_page(page: str) -> dict:
                 "type": _media_type(chunk),
                 "forward": is_forward,
                 "has_link": bool(re.search(r"https?://|t\.me/", text)),
+                "video_url": html.unescape(vid.group(1)) if vid else None,
+                "thumb_url": html.unescape(thumb.group(1)) if thumb else None,
             }
         )
     return info
@@ -126,8 +133,8 @@ def _fetch(url: str, timeout: int = 20) -> str:
         return r.read().decode("utf-8", errors="replace")
 
 
-def fetch_channel(username: str, limit: int = 60, fetch=_fetch) -> dict:
-    """Собирает до `limit` последних постов канала (по ~20 на страницу)."""
+def fetch_channel(username: str, days: int = 180, max_posts: int = 1000, fetch=_fetch, pause: float = 0.35) -> dict:
+    """Собирает посты канала за последние `days` дней (по ~20 на страницу), но не больше `max_posts`."""
     base = f"https://t.me/s/{username}"
     try:
         first = fetch(base)
@@ -140,14 +147,31 @@ def fetch_channel(username: str, limit: int = 60, fetch=_fetch) -> dict:
     if not info["posts"]:
         raise ChannelError("канал не найден, закрыт или без публичного превью")
 
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     seen = {p["id"] for p in info["posts"]}
+
+    def oldest_date():
+        ds = [p["date"] for p in info["posts"] if p.get("date")]
+        return min(ds) if ds else None
+
     pages = 1
-    while len(info["posts"]) < limit and pages < 8:
+    while len(info["posts"]) < max_posts and pages < 80:
+        od = oldest_date()
+        if od and od < cutoff:
+            break
         before = min(seen)
         if before <= 1:
             break
+        if pause:
+            time.sleep(pause)
         try:
             more = parse_page(fetch(f"{base}?before={before}"))
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                time.sleep(3)
+                pages += 1
+                continue
+            break
         except Exception:
             break
         new = [p for p in more["posts"] if p["id"] not in seen]
@@ -157,7 +181,17 @@ def fetch_channel(username: str, limit: int = 60, fetch=_fetch) -> dict:
         seen.update(p["id"] for p in new)
         pages += 1
 
+    info["posts"] = [p for p in info["posts"] if not p.get("date") or p["date"] >= cutoff]
     info["posts"].sort(key=lambda p: p["id"], reverse=True)
-    info["posts"] = info["posts"][:limit]
+    info["posts"] = info["posts"][:max_posts]
     info["username"] = username
     return info
+
+
+def download(url: str, limit: int = 60_000_000, timeout: int = 60) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = r.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError("file too big")
+    return data

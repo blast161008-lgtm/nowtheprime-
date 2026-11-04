@@ -6,6 +6,7 @@ AI_API_KEY  = ключ
 AI_MODEL    = модель (по умолчанию claude-sonnet-5-5 для anthropic)
 AI_BASE_URL = для openai-совместимых, напр. https://openrouter.ai/api/v1
 """
+import base64
 import json
 import logging
 import os
@@ -35,7 +36,7 @@ def _post(url, headers, payload, timeout=120):
         return json.loads(r.read().decode())
 
 
-def ask(prompt: str, max_tokens: int = 4000) -> str:
+def ask(prompt, max_tokens: int = 4000) -> str:
     """AI_MODEL может быть списком через запятую: если модель недоступна, пробуем следующую."""
     default = "claude-sonnet-5-5" if os.getenv("AI_PROVIDER", "anthropic").lower() == "anthropic" else "gpt-4o-mini"
     models = [m.strip() for m in os.getenv("AI_MODEL", default).split(",") if m.strip()]
@@ -52,9 +53,27 @@ def ask(prompt: str, max_tokens: int = 4000) -> str:
     raise last or RuntimeError("no models")
 
 
-def _ask_one(prompt: str, max_tokens: int, model: str) -> str:
+def _content(prompt, provider):
+    """prompt — строка или список частей: str (текст) или bytes (jpeg)."""
+    if isinstance(prompt, str):
+        return prompt
+    out = []
+    for part in prompt:
+        if isinstance(part, bytes):
+            b64 = base64.b64encode(part).decode()
+            if provider == "anthropic":
+                out.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": b64}})
+            else:
+                out.append({"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + b64}})
+        else:
+            out.append({"type": "text", "text": part})
+    return out
+
+
+def _ask_one(prompt, max_tokens: int, model: str) -> str:
     provider = os.getenv("AI_PROVIDER", "anthropic").lower()
     key = os.environ["AI_API_KEY"]
+    prompt = _content(prompt, "anthropic" if provider == "anthropic" else "openai")
     if provider == "anthropic":
         data = _post(
             os.getenv("AI_BASE_URL", "https://api.anthropic.com") + "/v1/messages",
@@ -133,3 +152,26 @@ def plan_prompt(stats: str) -> str:
 В конце — одна строка, по какой цифре через неделю понять, что план сработал.
 
 До 2500 знаков."""
+
+
+def video_intro(stats: str) -> str:
+    return f"""Статистика канала (для контекста):
+
+{stats}
+
+Дальше — кадры из роликов этого канала. Сначала ролики, которые набрали БОЛЬШЕ всего просмотров, потом — МЕНЬШЕ всего.
+У каждого ролика: просмотры, во сколько раз больше/меньше обычного поста, подпись к посту и кадры
+(первый кадр — первая секунда, то, что зритель видит до того, как решить, смотреть ли дальше)."""
+
+
+def video_outro() -> str:
+    return """Посмотри на кадры и сравни сильные ролики со слабыми. Ответ:
+
+1. Что общего у роликов, которые залетели: что в кадре в первую секунду, крупность, свет, локация, движение, люди, текст на экране, одежда/стиль, эмоция.
+2. Что не так со слабыми — конкретно по кадрам («в первой секунде пустой зал», «лицо далеко», «темно» и т.п.).
+3. Хук: как должна выглядеть первая секунда следующего ролика — опиши кадр, как режиссёр оператору.
+4. 3 идеи роликов, которые повторяют рецепт сильных: что снять, где, как поставить камеру, текст на экране дословно.
+5. Чек-лист перед публикацией из 5 пунктов.
+
+Честно: если по кадрам разница не видна, так и скажи. Видео целиком ты не видишь — только кадры, звук не слышишь; не выдумывай то, чего нет на кадрах.
+До 3500 знаков."""

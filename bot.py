@@ -20,6 +20,7 @@ from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import ai
+import video
 from analyzer import analyze, compact_for_ai, stats_text
 from tg_parser import ChannelError, fetch_channel, normalize_channel
 
@@ -126,11 +127,12 @@ def get_channel(name: str) -> dict:
 
 START = """Привет! Я ИИ-продюсер 🎬
 
-Смотрю статистику Telegram-канала и говорю, что постить, чтобы росли просмотры.
+Разбираю Telegram-канал за последние полгода и говорю, что постить, чтобы росли просмотры.
 
 Как пользоваться:
 • Пришли @канал или ссылку t.me/... — сделаю разбор: что заходит, что нет, 5 идей постов и лучшее время.
 • После разбора жми «Сравнить с конкурентами» и пришли ник конкурента — скажу, что тебе снимать, чтобы обогнать его по охватам.
+• «🎬 Разобрать видео» — посмотрю кадры твоих лучших и худших роликов и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
 Работаю с публичными каналами. Попробуй — пришли свой канал 👇"""
@@ -140,6 +142,7 @@ HELP = START
 
 def channel_keyboard(name: str):
     return [
+        [{"text": "🎬 Разобрать видео", "callback_data": f"vid:{name}"}],
         [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}],
         [{"text": "⚔️ Сравнить с конкурентами", "callback_data": f"cmp:{name}"}],
     ]
@@ -172,7 +175,7 @@ def run_job(chat_id: int, user: dict, fn, *args):
 
 
 def job_report(chat_id, user, name):
-    send(chat_id, f"Смотрю @{name}… обычно это 20–40 секунд ⏳")
+    send(chat_id, f"Собираю посты @{name} за последние полгода и считаю… до минуты ⏳")
     typing(chat_id)
     a = get_channel(name)
     if not a["ok"]:
@@ -221,6 +224,43 @@ def job_compare(chat_id, user, mine, rivals):
     typing(chat_id)
     text = ai.ask(ai.compare_prompt(compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]), max_tokens=5000)
     send(chat_id, text, [[{"text": "📅 План на неделю", "callback_data": f"plan:{mine}"}]])
+
+
+def job_videos(chat_id, user, name):
+    if not ai.enabled():
+        send(chat_id, "Разбор видео делает ИИ, а он пока не подключён.")
+        return
+    send(chat_id, f"Смотрю ролики @{name}: скачиваю лучшие и худшие, вырезаю кадры… это 1–2 минуты 🎬")
+    typing(chat_id)
+    a = get_channel(name)
+    if not a["ok"] or not a.get("video_top"):
+        send(chat_id, "Не нашёл у канала достаточно видео или кружков для сравнения (нужно хотя бы 2).")
+        return
+    parts = [ai.video_intro(compact_for_ai(a))]
+    got = 0
+    for title, group in (("СИЛЬНЫЕ РОЛИКИ", a["video_top"]), ("СЛАБЫЕ РОЛИКИ", a["video_worst"])):
+        parts.append(f"\n===== {title} =====")
+        for p in group:
+            typing(chat_id)
+            frames, dur = video.frames_for(p)
+            if not frames:
+                continue
+            got += 1
+            length = f", длина {round(dur)} с" if dur else ""
+            parts.append(
+                f"\nРолик t.me/{name}/{p['id']} ({p['type']}{length}): {p['views']} просмотров, ×{p['x_median']} к обычному посту. "
+                f"Подпись: {p['text'][:200] or '[без подписи]'}"
+            )
+            for label, img in frames:
+                parts.append(f"Кадр: {label}")
+                parts.append(img)
+    if got < 2:
+        send(chat_id, "Не получилось скачать ролики — Telegram не отдаёт их в открытый доступ. Попробуй другой канал.")
+        return
+    parts.append(ai.video_outro())
+    track(user, "video")
+    typing(chat_id)
+    send(chat_id, ai.ask(parts), [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
 
 
 def job_plan(chat_id, user, name):
@@ -277,7 +317,7 @@ def handle_message(msg: dict):
                 db = json.load(f)
         except Exception:
             db = {}
-        reports = sum(u.get("report", 0) + u.get("compare", 0) + u.get("plan", 0) for u in db.values())
+        reports = sum(u.get("report", 0) + u.get("compare", 0) + u.get("plan", 0) + u.get("video", 0) for u in db.values())
         send(chat_id, f"Пользователей: {len(db)}\nРазборов всего: {reports}")
         return
 
@@ -322,7 +362,9 @@ def handle_callback(cb: dict):
     data = cb.get("data", "")
     chat_id = cb["message"]["chat"]["id"]
     user = cb["from"]
-    if data.startswith("plan:"):
+    if data.startswith("vid:"):
+        run_job(chat_id, user, job_videos, data[4:])
+    elif data.startswith("plan:"):
         run_job(chat_id, user, job_plan, data[5:])
     elif data.startswith("cmp:"):
         name = data[4:]
@@ -410,6 +452,7 @@ def main():
     me = api("getMe")
     log.info("bot @%s, AI %s", (me or {}).get("username"), "on" if ai.enabled() else "off")
     set_commands()
+    video.warmup()
     base = os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_URL")
     if base:
         run_webhook(base, int(os.getenv("PORT", "10000")))

@@ -62,8 +62,8 @@ assert tg_parser.normalize_channel("t.me/durov") == "durov"
 assert tg_parser.normalize_channel("привет") is None
 assert tg_parser.parse_count("1.2K") == 1200 and tg_parser.parse_count("3M") == 3_000_000
 
-info = tg_parser.fetch_channel("testchan", limit=60, fetch=fake_fetch)
-assert len(info["posts"]) == 60, len(info["posts"])
+info = tg_parser.fetch_channel("testchan", fetch=fake_fetch, pause=0)
+assert len(info["posts"]) == 70, len(info["posts"])
 assert info["subscribers"] == 12400 and info["title"] == "Канал testchan"
 p = info["posts"][0]
 assert "&" in p["text"] and "\n" in p["text"], p["text"][:80]
@@ -72,7 +72,7 @@ print("parser OK:", len(info["posts"]), "posts")
 
 # ---- 2. аналитика ----
 a = analyze(info)
-assert a["ok"] and a["posts_analyzed"] == 59  # самый свежий (<24ч) исключён
+assert a["ok"] and a["posts_analyzed"] == 69  # самый свежий (<24ч) исключён
 assert a["by_type"][0]["key"] == "видео"
 print("\n" + stats_text(a))
 print("\n--- выжимка для ИИ (начало) ---\n" + compact_for_ai(a)[:700])
@@ -83,7 +83,7 @@ import bot
 
 sent = []
 bot.api = lambda method, **kw: sent.append((method, kw)) or {"username": "test"}
-bot.fetch_channel = lambda name: tg_parser.fetch_channel(name, fetch=fake_fetch)
+bot.fetch_channel = lambda name: tg_parser.fetch_channel(name, fetch=fake_fetch, pause=0)
 os.environ["AI_API_KEY"] = "fake"
 ai.ask = lambda prompt, max_tokens=0: f"[ИИ-ответ на промпт длиной {len(prompt)} знаков]"
 

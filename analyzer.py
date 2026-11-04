@@ -10,6 +10,7 @@ except Exception:  # нет базы часовых поясов
     MSK = timezone(timedelta(hours=3))
 
 WEEKDAYS = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
+MONTHS = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
 
 
 def _len_bucket(text: str) -> str:
@@ -65,8 +66,23 @@ def analyze(info: dict, now: datetime | None = None) -> dict:
     per_week = round(len(posts) / span_days * 7, 1)
 
     subs = info.get("subscribers")
-    top = sorted(posts, key=lambda p: p["views"], reverse=True)[:5]
-    worst = sorted(posts, key=lambda p: p["views"])[:3]
+    n_top = 10 if len(posts) >= 60 else 5
+    top = sorted(posts, key=lambda p: p["views"], reverse=True)[:n_top]
+    worst = sorted(posts, key=lambda p: p["views"])[: max(3, n_top // 2)]
+
+    months = {}
+    for p in posts:
+        months.setdefault((p["local"].year, p["local"].month), []).append(p["views"])
+    by_month = [
+        {"key": f"{MONTHS[m - 1]} {y}", "count": len(v), "median": round(median(v))}
+        for (y, m), v in sorted(months.items())
+    ]
+
+    vids = [p for p in posts if p["type"] in ("видео", "кружок") and (p.get("video_url") or p.get("thumb_url"))]
+    vids_sorted = sorted(vids, key=lambda p: p["views"], reverse=True)
+    k = min(3, len(vids_sorted) // 2)
+    video_top = [_brief(p, med, media=True) for p in vids_sorted[:k]]
+    video_worst = [_brief(p, med, media=True) for p in vids_sorted[::-1][:k]]
 
     return {
         "ok": True,
@@ -87,11 +103,14 @@ def analyze(info: dict, now: datetime | None = None) -> dict:
         "top": [_brief(p, med) for p in top],
         "worst": [_brief(p, med) for p in worst],
         "forwards_share": round(sum(p["forward"] for p in posts) / len(posts) * 100),
+        "by_month": by_month,
+        "video_top": video_top,
+        "video_worst": video_worst,
     }
 
 
-def _brief(p, med):
-    return {
+def _brief(p, med, media=False):
+    d = {
         "id": p["id"],
         "views": p["views"],
         "x_median": round(p["views"] / med, 1) if med else 0,
@@ -99,6 +118,10 @@ def _brief(p, med):
         "date": p["local"].strftime("%d.%m %H:%M"),
         "text": (p["text"][:300] + "…") if len(p["text"]) > 300 else p["text"],
     }
+    if media:
+        d["video_url"] = p.get("video_url")
+        d["thumb_url"] = p.get("thumb_url")
+    return d
 
 
 def fmt_num(n) -> str:
@@ -155,6 +178,12 @@ def stats_text(a: dict) -> str:
     h = best(a["by_time"])
     if d and h:
         lines.append(f"Лучшие день и время: {d['key']}, {h['key']} ({_diff(max(d['vs_median'], h['vs_median']))} просмотров)")
+    bm = [m for m in a.get("by_month", []) if m["count"] >= 3]
+    if len(bm) >= 2:
+        first, last = bm[0], bm[-1]
+        ch = round((last["median"] / first["median"] - 1) * 100) if first["median"] else 0
+        trend = f"выросли на {ch}%" if ch > 5 else (f"упали на {-ch}%" if ch < -5 else "держатся на одном уровне")
+        lines.append(f"Охваты с {first['key']} по {last['key']}: {trend} ({first['median']} → {last['median']})")
     top = a["top"][0]
     v = top["views"]
     lines.append(
@@ -179,6 +208,7 @@ def compact_for_ai(a: dict) -> str:
         f"По длине текста: {g(a['by_length'])}",
         f"По дням недели: {g(a['by_weekday'])}",
         f"По времени (МСК): {g(a['by_time'])}",
+        "По месяцам (медиана просмотров): " + "; ".join(f"{m['key']}: {m['count']} постов, {m['median']}" for m in a.get("by_month", [])),
         "ЛУЧШИЕ ПОСТЫ:",
     ]
     for p in a["top"]:
