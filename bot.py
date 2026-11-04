@@ -597,13 +597,21 @@ def job_reel(chat_id, user, file_id, caption):
     # 1) Gemini смотрит ролик целиком — картинка + звук
     if ai_media.gemini_enabled():
         try:
-            small = video.compress_for_ai(data)
             how = ("Ролик прикреплён целиком — ты ВИДИШЬ картинку и СЛЫШИШЬ звук (музыку, голос). "
                    "Указывай моменты по секундам.")
             prompt = ai.reel_intro(meta, caption, context, how=how) + "\n\n" + ai.reel_outro(ai_media.SOUND_BLOCK)
-            typing(chat_id)
-            send(chat_id, ai_media.ask_gemini_video(small, prompt), kb)
-            return
+            # если прокси откажет из-за оценки стоимости — пробуем ещё легче
+            for opts, mt in (({}, 4000), ({"height": 240, "fps": 2, "crf": 38, "abr": "32k", "max_sec": 60}, 3000)):
+                small = video.compress_for_ai(data, **opts)
+                log.info("gemini reel payload %d KB (%s)", len(small) // 1024, opts or "default")
+                try:
+                    typing(chat_id)
+                    send(chat_id, ai_media.ask_gemini_video(small, prompt, max_tokens=mt), kb)
+                    return
+                except RuntimeError as e:
+                    if "402" not in str(e):
+                        raise
+                    log.warning("gemini 402 at %d KB, trying lighter", len(small) // 1024)
         except Exception as e:
             log.warning("gemini video failed, fallback to frames: %s", e)
 

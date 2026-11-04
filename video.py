@@ -182,8 +182,9 @@ def to_jpeg(data: bytes) -> bytes:
     return r.stdout
 
 
-def compress_for_ai(data: bytes, max_sec: int = 90) -> bytes:
-    """Сжимает ролик для ИИ: 480p, низкий битрейт, моно-звук — обычно 1–4 МБ."""
+def compress_for_ai(data: bytes, max_sec: int = 90, height: int = 360, fps: int = 4, crf: int = 34,
+                    abr: str = "48k") -> bytes:
+    """Сжимает ролик для ИИ (Gemini всё равно смотрит ~1 кадр/с): 360p, 4 fps, моно-звук — обычно 200–600 КБ."""
     ff = ffmpeg_path()
     with tempfile.TemporaryDirectory() as d:
         src, dst = os.path.join(d, "in.mp4"), os.path.join(d, "out.mp4")
@@ -191,8 +192,8 @@ def compress_for_ai(data: bytes, max_sec: int = 90) -> bytes:
             f.write(data)
         r = subprocess.run(
             [ff, "-hide_banner", "-loglevel", "error", "-y", "-i", src, "-t", str(max_sec),
-             "-vf", "scale=-2:'min(480,ih)',fps=24", "-c:v", "libx264", "-preset", "veryfast", "-crf", "32",
-             "-c:a", "aac", "-b:a", "64k", "-ac", "1", "-movflags", "+faststart", dst],
+             "-vf", f"scale=-2:'min({height},ih)',fps={fps}", "-c:v", "libx264", "-preset", "veryfast", "-crf", str(crf),
+             "-c:a", "aac", "-b:a", abr, "-ac", "1", "-ar", "22050", "-movflags", "+faststart", dst],
             capture_output=True, timeout=240,
         )
         if r.returncode or not os.path.exists(dst):
