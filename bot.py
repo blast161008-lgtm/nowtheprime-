@@ -20,6 +20,7 @@ from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import ai
+import storage
 import video
 from analyzer import analyze, compact_for_ai, stats_text
 from tg_parser import ChannelError, fetch_channel, normalize_channel
@@ -37,7 +38,20 @@ MAX_RIVALS = 3
 pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
 busy: set[int] = set()
 usage: dict[tuple[int, str], int] = {}
-last_channel: dict[int, str] = {}
+class _LastChannel:
+    """Последний канал пользователя — хранится в базе и переживает перезапуски."""
+
+    def get(self, uid, default=None):
+        return storage.get_channel(uid) or default
+
+    def __getitem__(self, uid):
+        return storage.get_channel(uid)
+
+    def __setitem__(self, uid, name):
+        storage.set_channel(uid, name)
+
+
+last_channel = _LastChannel()
 cache: dict[str, tuple[float, dict]] = {}
 lock = threading.Lock()
 
@@ -80,24 +94,8 @@ def typing(chat_id: int):
 
 # ---------------- данные пользователей ----------------
 
-def _users_path():
-    os.makedirs(DATA_DIR, exist_ok=True)
-    return os.path.join(DATA_DIR, "users.json")
-
-
 def track(user: dict, event: str):
-    with lock:
-        path = _users_path()
-        try:
-            with open(path) as f:
-                db = json.load(f)
-        except Exception:
-            db = {}
-        u = db.setdefault(str(user["id"]), {"name": user.get("username") or user.get("first_name"), "first": time.time()})
-        u[event] = u.get(event, 0) + 1
-        u["last"] = time.time()
-        with open(path, "w") as f:
-            json.dump(db, f, ensure_ascii=False)
+    storage.track(user, event, time.time())
 
 
 def take_quota(uid: int) -> bool:
@@ -369,19 +367,28 @@ def handle_message(msg: dict):
 
     if cmd == "/start":
         track(user, "start")
-        send(chat_id, START)
+        mine = last_channel.get(user["id"])
+        if mine:
+            send(chat_id, START + f"\n\nТвой канал: @{mine} — можно сразу жать кнопки 👇", channel_keyboard(mine))
+        else:
+            send(chat_id, START)
         return
     if cmd == "/help":
         send(chat_id, HELP)
         return
     if cmd == "/stats" and user["id"] in ADMIN_IDS:
-        try:
-            with open(_users_path()) as f:
-                db = json.load(f)
-        except Exception:
-            db = {}
-        reports = sum(u.get("report", 0) + u.get("compare", 0) + u.get("plan", 0) + u.get("video", 0) + u.get("ideas", 0) for u in db.values())
-        send(chat_id, f"Пользователей: {len(db)}\nРазборов всего: {reports}")
+        st = storage.all_stats()
+        acts = ("report", "compare", "plan", "video", "ideas")
+        total = sum(int(u.get(k, 0)) for u in st.values() for k in acts)
+        day_ago = time.time() - 86400
+        active = sum(1 for u in st.values() if float(u.get("last", 0)) > day_ago)
+        new = sum(1 for u in st.values() if float(u.get("first", 0)) > day_ago)
+        top = sorted(st.items(), key=lambda kv: -sum(int(kv[1].get(k, 0)) for k in acts))[:10]
+        lines = [f"Пользователей всего: {len(st)}", f"Новых за сутки: {new}", f"Активных за сутки: {active}", f"Запросов всего: {total}", ""]
+        for uid, u in top:
+            n = sum(int(u.get(k, 0)) for k in acts)
+            lines.append(f"{'@' + u['name'] if u.get('name') else uid}: {n}")
+        send(chat_id, "\n".join(lines))
         return
 
     chans = extract_channels(text[len(cmd):] if cmd else text)
