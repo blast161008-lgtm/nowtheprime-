@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ai-producer-bot
+    runtime: python
+    plan: free
+    buildCommand: "echo no deps"
+    startCommand: "python bot.py"
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: AI_PROVIDER
+        value: anthropic
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: ADMIN_IDS
+        sync: false
+      - key: DAILY_LIMIT
+        value: "5"
