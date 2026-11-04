@@ -20,6 +20,7 @@ from datetime import date
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import ai
+import ai_media
 import storage
 import video
 from analyzer import analyze, compact_for_ai, stats_text
@@ -181,12 +182,12 @@ MENU_INSTA = [
     [{"text": "📊 Разбор Инсты по скриншотам", "callback_data": "help_insta"}],
 ]
 
-HELP_REEL = """📲 Проверка рилса до публикации
+HELP_REEL = """📲 Проверка рилса до публикации (смотрю со звуком)
 
 Пришли сюда ролик как обычное видео (до 20 МБ — Telegram обычно сам сжимает).
 Можно добавить подпись, которую планируешь поставить под рилс.
 
-Через минуту скажу: шансы залететь, цепляет ли первая секунда, что поправить, 3 варианта текста-хука, подпись и какой кадр взять на обложку."""
+Через минуту скажу: шансы залететь, цепляет ли первая секунда, как работает звук (трек, бит, речь), что поправить, 3 варианта текста-хука, подпись и что взять на обложку."""
 
 HELP_INSTA = """📊 Разбор Инстаграма по скриншотам
 
@@ -576,9 +577,10 @@ def job_reel(chat_id, user, file_id, caption):
         return
     if not allow(chat_id, user, "reel"):
         return
-    send(chat_id, "Смотрю рилс: вырезаю кадры, проверяю первую секунду… около минуты 🎬")
+    send(chat_id, "Смотрю рилс со звуком: первая секунда, музыка, речь, монтаж… около минуты 🎬")
     typing(chat_id)
-    frames, meta = video.reel_frames(tg_download(file_id))
+    data = tg_download(file_id)
+    frames, meta = video.reel_frames(data)
     if not frames:
         send(chat_id, "Не получилось прочитать видео 😕 Попробуй прислать его ещё раз как обычное видео.")
         return
@@ -589,15 +591,46 @@ def job_reel(chat_id, user, file_id, caption):
             context = compact_for_ai(get_channel(home))[:1500]
         except Exception:
             context = None
-    parts = [ai.reel_intro(meta, caption, context)]
+    track(user, "reel")
+    kb = [[{"text": "📲 Проверить ещё рилс", "callback_data": "help_reel"}]]
+
+    # 1) Gemini смотрит ролик целиком — картинка + звук
+    if ai_media.gemini_enabled():
+        try:
+            small = video.compress_for_ai(data)
+            how = ("Ролик прикреплён целиком — ты ВИДИШЬ картинку и СЛЫШИШЬ звук (музыку, голос). "
+                   "Указывай моменты по секундам.")
+            prompt = ai.reel_intro(meta, caption, context, how=how) + "\n\n" + ai.reel_outro(ai_media.SOUND_BLOCK)
+            typing(chat_id)
+            send(chat_id, ai_media.ask_gemini_video(small, prompt), kb)
+            return
+        except Exception as e:
+            log.warning("gemini video failed, fallback to frames: %s", e)
+
+    # 2) Запасной путь: кадры + данные о звуке + расшифровка речи
+    sound_lines = []
+    if meta.get("has_audio"):
+        try:
+            facts = video.audio_facts(data)
+            sound_lines.append(f"Звук начинается с {facts.get('sound_starts_at', 0)} с.")
+            if facts.get("silences"):
+                sound_lines.append("Паузы (тишина): " + ", ".join(f"{a}–{b} с" for a, b in facts["silences"]))
+            if facts.get("mp3"):
+                text = ai_media.transcribe(facts["mp3"])
+                sound_lines.append("Речь в ролике: " + (text if text else "речи не распознано (вероятно, только музыка)"))
+        except Exception as e:
+            log.warning("audio facts failed: %s", e)
+    else:
+        sound_lines.append("В ролике НЕТ звуковой дорожки.")
+    how = ("Дальше — кадры ролика с отметками времени. Музыку ты не слышишь, но вот данные о звуке:\n"
+           + "\n".join(sound_lines))
+    parts = [ai.reel_intro(meta, caption, context, how=how)]
     for i, (label, img) in enumerate(frames, 1):
         parts.append(f"Кадр {i}: {label}")
         parts.append(img)
-    parts.append(ai.reel_outro())
-    track(user, "reel")
+    parts.append(ai.reel_outro(ai_media.SOUND_BLOCK.replace("что звучит (музыка / голос / тишина)", "по данным о звуке и речи")))
     typing(chat_id)
-    send(chat_id, ai.ask(parts, heavy=True, tag="reel"),
-         [[{"text": "📲 Проверить ещё рилс", "callback_data": "help_reel"}]])
+    send(chat_id, ai.ask(parts, heavy=True, tag="reel"), kb)
 
 
 def job_insta(chat_id, user, items, note):

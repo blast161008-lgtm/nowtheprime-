@@ -180,3 +180,47 @@ def to_jpeg(data: bytes) -> bytes:
     if r.returncode or not r.stdout:
         raise RuntimeError("не получилось прочитать картинку")
     return r.stdout
+
+
+def compress_for_ai(data: bytes, max_sec: int = 90) -> bytes:
+    """Сжимает ролик для ИИ: 480p, низкий битрейт, моно-звук — обычно 1–4 МБ."""
+    ff = ffmpeg_path()
+    with tempfile.TemporaryDirectory() as d:
+        src, dst = os.path.join(d, "in.mp4"), os.path.join(d, "out.mp4")
+        with open(src, "wb") as f:
+            f.write(data)
+        r = subprocess.run(
+            [ff, "-hide_banner", "-loglevel", "error", "-y", "-i", src, "-t", str(max_sec),
+             "-vf", "scale=-2:'min(480,ih)',fps=24", "-c:v", "libx264", "-preset", "veryfast", "-crf", "32",
+             "-c:a", "aac", "-b:a", "64k", "-ac", "1", "-movflags", "+faststart", dst],
+            capture_output=True, timeout=240,
+        )
+        if r.returncode or not os.path.exists(dst):
+            raise RuntimeError("не удалось сжать видео: " + r.stderr.decode(errors="ignore")[-300:])
+        with open(dst, "rb") as f:
+            return f.read()
+
+
+def audio_facts(data: bytes) -> dict:
+    """Факты о звуке без ИИ: когда начинается звук, паузы, громкость. + mp3 для расшифровки речи."""
+    ff = ffmpeg_path()
+    out = {}
+    with tempfile.TemporaryDirectory() as d:
+        src, mp3 = os.path.join(d, "in.mp4"), os.path.join(d, "a.mp3")
+        with open(src, "wb") as f:
+            f.write(data)
+        r = subprocess.run([ff, "-hide_banner", "-i", src, "-vn", "-af", "silencedetect=n=-40dB:d=0.4", "-f", "null", "-"],
+                           capture_output=True, text=True, timeout=120)
+        starts = [float(x) for x in re.findall(r"silence_start: (-?[\d.]+)", r.stderr)]
+        ends = [float(x) for x in re.findall(r"silence_end: ([\d.]+)", r.stderr)]
+        if starts and starts[0] <= 0.05 and ends:
+            out["sound_starts_at"] = round(ends[0], 1)
+        else:
+            out["sound_starts_at"] = 0.0
+        out["silences"] = [(round(a, 1), round(b, 1)) for a, b in zip(starts, ends) if b - a >= 0.4][:6]
+        r = subprocess.run([ff, "-hide_banner", "-loglevel", "error", "-y", "-i", src, "-vn", "-ac", "1", "-ar", "16000",
+                            "-b:a", "32k", mp3], capture_output=True, timeout=120)
+        if r.returncode == 0 and os.path.exists(mp3):
+            with open(mp3, "rb") as f:
+                out["mp3"] = f.read()
+    return out
