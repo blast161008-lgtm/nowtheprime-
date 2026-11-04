@@ -252,14 +252,14 @@ def subscribed(uid) -> bool:
     return storage.sub_until(uid) > time.time()
 
 
-def allow(chat_id, user, kind) -> bool:
-    """Можно ли сделать ИИ-запрос `kind`. Бесплатные — списываются."""
+def allow(chat_id, user, kind):
+    """Можно ли сделать ИИ-запрос `kind`. True — полный доступ, "trial" — бесплатная проба (списывается), False — нет."""
     uid = user["id"]
     if not PAYWALL or uid in ADMIN_IDS or subscribed(uid):
         return True
     if storage.free_used(uid, kind) < FREE.get(kind, 0):
         storage.use_free(uid, kind)
-        return True
+        return "trial"
     send(
         chat_id,
         f"{PAYWALLS.get(kind, 'Это — в подписке.')}\n\n"
@@ -345,6 +345,9 @@ def admin_decide(chat_id, admin, data):
         home = home_of({"id": uid})
         send(uid, f"🔥 Подписка активна до {d}. Всё открыто — жми кнопки или пришли свой канал.",
              channel_keyboard(home) if home else None)
+        locked = storage.pop_locked_ideas(uid)
+        if locked:
+            send(uid, "🔓 Обещанные идеи:\n\n" + locked)
         send(chat_id, f"✅ Подписка для {uid} ({PERIODS[period][2]}) включена до {d}. Не забудь чек в «Мой налог».")
         # рефералка: пригласившему +30 дней за первую оплату друга
         ref = storage.ref_of(uid)
@@ -571,8 +574,24 @@ def job_videos(chat_id, user, name):
 past_ideas: dict[tuple[int, str], list[str]] = {}
 
 
+TEASER_IDEAS = 3
+
+
+def split_ideas(text: str, keep: int = TEASER_IDEAS) -> tuple[str, str]:
+    """Режет ответ с идеями: первые `keep` идей и остальное."""
+    lines = text.splitlines()
+    for i, ln in enumerate(lines):
+        if re.match(rf"^{keep + 1}[.)]\s", ln.strip()):
+            return "\n".join(lines[:i]).rstrip(), "\n".join(lines[i:]).strip()
+    cut = max(len(text) // 3, 1)
+    return text[:cut].rstrip() + "…", text[cut:].strip()
+
+
 def job_ideas(chat_id, user, name, focus=None):
-    if not guard_own(chat_id, user, name) or not allow(chat_id, user, "ideas"):
+    if not guard_own(chat_id, user, name):
+        return
+    access = allow(chat_id, user, "ideas")
+    if not access:
         return
     if not ai.enabled():
         send(chat_id, "Идеи придумывает ИИ, а он пока не подключён.")
@@ -591,6 +610,18 @@ def job_ideas(chat_id, user, name, focus=None):
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
     past_ideas[key] = prev + (titles or [text[:1500]])
     track(user, "ideas")
+    if access == "trial":
+        # бесплатная проба: показываем 3 идеи, остальные — после подписки
+        shown, locked = split_ideas(text)
+        storage.set_locked_ideas(user["id"], locked)
+        rest = len([ln for ln in locked.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]) or 7
+        send(
+            chat_id,
+            shown + f"\n\n🔒 Ещё {rest} идей уже готовы — открываются в подписке.",
+            [[{"text": f"🔓 Открыть остальные {rest} — подписка {PRICE} ₽", "callback_data": "pay"}],
+             [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]],
+        )
+        return
     cb = f"idea:{name}" + (f"|{focus}" if focus else "")
     if len(cb.encode()) > 64:
         cb = f"idea:{name}"

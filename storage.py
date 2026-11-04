@@ -211,6 +211,17 @@ def ref_rewarded(uid) -> bool:
     return True
 
 
+def set_locked_ideas(uid, text: str):
+    _safe("SET", f"u:{uid}:locked_ideas", text)
+
+
+def pop_locked_ideas(uid) -> str | None:
+    t = _safe("GET", f"u:{uid}:locked_ideas")
+    if t:
+        _safe("SET", f"u:{uid}:locked_ideas", "")
+    return t or None
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
