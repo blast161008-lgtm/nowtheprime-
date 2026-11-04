@@ -222,6 +222,15 @@ def pop_locked_ideas(uid) -> str | None:
     return t or None
 
 
+def month_used(uid, bucket: str, month: str) -> int:
+    return int(_safe("GET", f"u:{uid}:m:{month}:{bucket}") or 0)
+
+
+def month_use(uid, bucket: str, month: str):
+    _safe("HINCRBY", f"u:{uid}:mh", f"{month}:{bucket}", 1)
+    _safe("SET", f"u:{uid}:m:{month}:{bucket}", month_used(uid, bucket, month) + 1)
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]

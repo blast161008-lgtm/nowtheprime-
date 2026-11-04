@@ -42,6 +42,11 @@ YEAR_MONTHS_PAID = 10  # год = цена 10 месяцев
 PERIODS = {"m": (SUB_DAYS, 1, "месяц"), "y": (365, YEAR_MONTHS_PAID, "год")}
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Improvelab_bot")
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
+# месячные лимиты подписки: тяжёлые функции отдельно, остальное — общий пул "text"
+QUOTAS = json.loads(os.getenv("QUOTAS", '{"reels": 3, "video": 3, "insta": 3, "reel": 15, "text": 30}'))
+QUOTA_BUCKET = {"report": "text", "ideas": "text", "plan": "text", "compare": "text"}
+QUOTA_NAMES = {"reels": "разборов по роликам", "video": "разборов видео канала", "insta": "разборов по скриншотам",
+               "reel": "проверок рилсов", "text": "разборов, идей, планов и сравнений"}
 PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
 FREE = {"report": 1, "ideas": 1, "reel": 1, "video": 1}  # бесплатный пробник (скрины Inst/TikTok, план, сравнение — в подписке)
 PAYWALLS = {
@@ -270,7 +275,18 @@ def subscribed(uid) -> bool:
 def allow(chat_id, user, kind):
     """Можно ли сделать ИИ-запрос `kind`. True — полный доступ, "trial" — бесплатная проба (списывается), False — нет."""
     uid = user["id"]
-    if not PAYWALL or uid in ADMIN_IDS or subscribed(uid):
+    if not PAYWALL or uid in ADMIN_IDS:
+        return True
+    if subscribed(uid):
+        bucket = QUOTA_BUCKET.get(kind, kind)
+        limit = QUOTAS.get(bucket)
+        month = time.strftime("%Y-%m")
+        if limit is not None and storage.month_used(uid, bucket, month) >= limit:
+            nxt = time.strftime("01.%m", time.localtime(time.mktime(time.strptime(month, "%Y-%m")) + 32 * 86400))
+            send(chat_id, f"В этом месяце лимит {QUOTA_NAMES.get(bucket, bucket)} исчерпан ({limit}). Обновится {nxt} 🙌\n"
+                          "Нужно больше — напиши, подберём тариф побольше.")
+            return False
+        storage.month_use(uid, bucket, month)
         return True
     if storage.free_used(uid, kind) < FREE.get(kind, 0):
         storage.use_free(uid, kind)
@@ -1057,7 +1073,10 @@ def handle_message(msg: dict):
     if cmd in ("/sub", "/pay"):
         until = storage.sub_until(user["id"])
         if until > time.time():
-            send(chat_id, f"Подписка активна до {time.strftime('%d.%m.%Y', time.localtime(until))} ✅",
+            month = time.strftime("%Y-%m")
+            left = "\n".join(f"• {QUOTA_NAMES.get(b, b)}: {max(lim - storage.month_used(user['id'], b, month), 0)} из {lim}"
+                             for b, lim in QUOTAS.items())
+            send(chat_id, f"Подписка активна до {time.strftime('%d.%m.%Y', time.localtime(until))} ✅\n\nОсталось в этом месяце:\n{left}",
                  [[{"text": "Продлить", "callback_data": "pay"}]])
         else:
             show_pay(chat_id, user)
