@@ -9,7 +9,6 @@ import json
 import logging
 import os
 import re
-import secrets
 import threading
 import time
 import traceback
@@ -60,7 +59,8 @@ PAYWALLS = {
     "reels": "Разбор Inst / TikTok по роликам — в подписке.",
 }
 
-pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "4")))
+pool = ThreadPoolExecutor(max_workers=int(os.getenv("WORKERS", "6")))       # долгие задачи (ИИ, видео)
+updates_pool = ThreadPoolExecutor(max_workers=8)                              # входящие сообщения — всегда быстро
 busy: set[int] = set()
 usage: dict[tuple[int, str], int] = {}
 class _LastChannel:
@@ -95,11 +95,20 @@ def api(method: str, **params):
     except urllib.error.HTTPError as e:
         log.warning("TG %s %s: %s", method, e.code, e.read()[:300])
         return None
+    except Exception as e:
+        log.warning("TG %s failed: %s", method, e)
+        return None
 
 
 def send(chat_id: int, text: str, keyboard=None):
     parts, buf = [], ""
+    lines = []
     for line in text.split("\n"):
+        while len(line) > 3800:
+            lines.append(line[:3800])
+            line = line[3800:]
+        lines.append(line)
+    for line in lines:
         if len(buf) + len(line) + 1 > 3900:
             parts.append(buf)
             buf = ""
@@ -274,9 +283,10 @@ START = """Привет! Я ИИ-продюсер 🎬
 
 Как пользоваться:
 • Пришли @канал или ссылку t.me/... — сделаю разбор: что заходит, что нет, 5 идей постов и лучшее время.
+• /niche — о чём ты снимаешь (учитываю во всех советах).
 • После разбора жми «Сравнить с конкурентами» и пришли ник конкурента — скажу, что тебе снимать, чтобы обогнать его по охватам.
 • «💡 Идеи для съёмок» — 10 идей, что снять, с первым кадром и первыми словами. Жми «Ещё» сколько угодно, или /ideas тема — идеи на конкретную тему.
-• «🎬 Разобрать видео» — посмотрю кадры твоих лучших и худших роликов и скажу, чем они отличаются.
+• «🎬 Разобрать видео» — посмотрю со звуком твои лучшие и худшие ролики и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
 📸 Инстаграм / TikTok:
@@ -355,13 +365,17 @@ def channel_keyboard(name: str):
 
 def run_job(chat_id: int, user: dict, fn, *args, quota: bool = True):
     uid = user["id"]
-    if uid in busy:
+    with lock:
+        is_busy = uid in busy
+        if not is_busy:
+            busy.add(uid)
+    if is_busy:
         send(chat_id, "Ещё разбираю прошлый запрос — секунду ⏳")
         return
     if quota and not take_quota(uid):
+        busy.discard(uid)
         send(chat_id, f"На сегодня лимит {DAILY_LIMIT} разборов закончился. Возвращайся завтра 🙌")
         return
-    busy.add(uid)
 
     def wrapped():
         try:
@@ -412,6 +426,7 @@ def allow(chat_id, user, kind):
 
 
 pending_pay: dict[int, str] = {}  # uid -> период ("m" / "y")
+proof_groups: set = set()
 
 
 def pay_code(uid, period="m") -> str:
@@ -458,9 +473,8 @@ def got_payment_proof(msg, user):
     """Пользователь прислал скриншот — пересылаем админам с кнопками."""
     uid = user["id"]
     period = pending_pay.pop(uid, "m")
-    who = "@" + user["username"] if user.get("username") else user.get("first_name", "")
     ref = storage.ref_of(uid)
-    info = (f"💳 Оплата подписки ({PERIODS[period][2]})\nОт: {who} (id {uid})\nКод: {pay_code(uid, period)}\n"
+    info = (f"💳 Оплата подписки ({PERIODS[period][2]})\nОт: {who(user)} (id {uid})\nКод: {pay_code(uid, period)}\n"
             f"Сумма: {period_price(period)} ₽\nКанал: @{home_of(user) or '—'}" + (f"\nПригласил: {ref}" if ref else ""))
     kb = [[{"text": "✅ Подтвердить", "callback_data": f"ok:{uid}:{period}"},
            {"text": "❌ Отклонить", "callback_data": f"no:{uid}:{period}"}]]
@@ -657,17 +671,25 @@ def job_compare(chat_id, user, mine, rivals):
 
 
 def job_videos(chat_id, user, name):
-    if not guard_own(chat_id, user, name) or not allow(chat_id, user, "video"):
+    if not guard_own(chat_id, user, name):
         return
     if not ai.enabled():
         send(chat_id, "Разбор видео делает ИИ, а он пока не подключён.")
         return
-    send(chat_id, f"Смотрю ролики @{name} со звуком: лучшие и худшие… это 2–3 минуты 🎬")
-    typing(chat_id)
     a = get_channel(name)
     if not a["ok"] or not a.get("video_top"):
         send(chat_id, "Не нашёл у канала достаточно видео или кружков для сравнения (нужно хотя бы 2).")
         return
+    if not allow(chat_id, user, "video"):
+        return
+    kb = fb("video", [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]])
+    with lock:
+        hit = ai_cache.get(("video", name.lower()))
+    if hit and time.time() - hit[0] < AI_CACHE_TTL:  # уже смотрели недавно — не скачиваем и не платим заново
+        send(chat_id, hit[1], kb)
+        return
+    send(chat_id, f"Смотрю ролики @{name} со звуком: лучшие и худшие… это 2–3 минуты 🎬")
+    typing(chat_id)
     parts = [ai.video_intro(niche_line(user) + compact_for_ai(a))]
     got = heard = 0
     for title, group in (("СИЛЬНЫЕ РОЛИКИ", a["video_top"]), ("СЛАБЫЕ РОЛИКИ", a["video_worst"])):
@@ -710,8 +732,7 @@ def job_videos(chat_id, user, name):
     parts.append(ai.video_outro(heard=heard > 0))
     track(user, "video")
     typing(chat_id)
-    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True),
-         fb("video", [[{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]]))
+    send(chat_id, cached_ai(("video", name.lower()), lambda: parts, heavy=True), kb)
 
 
 past_ideas: dict[tuple[int, str], list[str]] = {}
@@ -1147,7 +1168,13 @@ def handle_message(msg: dict):
     chat_id = msg["chat"]["id"]
     user = msg.get("from") or {"id": chat_id}
     text = (msg.get("text") or "").strip()
-    if user["id"] in pending_pay and (msg.get("photo") or msg.get("document") or (text and not text.startswith("/"))):
+    gid = msg.get("media_group_id")
+    if gid and gid in proof_groups:
+        return  # остальные фото из альбома со скриншотом оплаты
+    if user["id"] in pending_pay and (msg.get("photo") or msg.get("document")
+                                      or (text and not text.startswith("/") and not extract_channels(text))):
+        if gid:
+            proof_groups.add(gid)
         got_payment_proof(msg, user)
         return
     if not text and handle_media(msg, user):
@@ -1259,7 +1286,7 @@ def handle_message(msg: dict):
         ask_week(chat_id, user, name)
         return
 
-    if not cmd and user["id"] in pending_niche:
+    if not cmd and user["id"] in pending_niche and not chans:
         pending_niche.discard(user["id"])
         storage.set_niche(user["id"], text)
         send(chat_id, f"Записал: {text[:80]} ✍️ Теперь пришли свой канал (@ник) или ролик 👇")
@@ -1445,7 +1472,7 @@ def run_polling():
         updates = api("getUpdates", offset=offset, timeout=50) or []
         for u in updates:
             offset = u["update_id"] + 1
-            pool.submit(handle_update, u)
+            updates_pool.submit(handle_update, u)
         if not updates:
             time.sleep(0.5)
 
@@ -1475,7 +1502,7 @@ def run_webhook(base_url: str, port: int):
             self.send_response(200)
             self.end_headers()
             try:
-                pool.submit(handle_update, json.loads(body))
+                updates_pool.submit(handle_update, json.loads(body))
             except Exception:
                 pass
 
