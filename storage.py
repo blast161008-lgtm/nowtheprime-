@@ -327,6 +327,23 @@ class Pending:
         return v
 
 
+def get_dna(channel: str, now: float, max_age_days: int = 7):
+    import json as _json
+    raw = _safe("GET", f"dna:{channel.lower()}")
+    if not raw:
+        return None
+    try:
+        d = _json.loads(raw)
+    except Exception:
+        return None
+    return d["text"] if now - d.get("ts", 0) <= max_age_days * 86400 else None
+
+
+def set_dna(channel: str, text: str, ts: float):
+    import json as _json
+    _safe("SET", f"dna:{channel.lower()}", _json.dumps({"ts": int(ts), "text": text[:3000]}, ensure_ascii=False))
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]

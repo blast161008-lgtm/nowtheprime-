@@ -22,7 +22,7 @@ import ai
 import ai_media
 import storage
 import video
-from analyzer import analyze, compact_for_ai, stats_text
+from analyzer import analyze, compact_for_ai, samples_for_ai, stats_text
 from tg_parser import ChannelError, fetch_channel, normalize_channel
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -310,7 +310,7 @@ START = """Привет! Я ИИ-продюсер 🎬
 • Пришли @канал или ссылку t.me/... — сделаю разбор: что заходит, что нет, 5 идей постов и лучшее время.
 • /niche — о чём ты снимаешь (учитываю во всех советах).
 • После разбора жми «Сравнить с конкурентами» и пришли ник конкурента — скажу, что тебе снимать, чтобы обогнать его по охватам.
-• «💡 Идеи для съёмок» — 10 идей, что снять, с первым кадром и первыми словами. Жми «Ещё» сколько угодно, или /ideas тема — идеи на конкретную тему.
+• «💡 Идеи для съёмок» — 5 сильных идей под твой канал, с первым кадром и первыми словами. Жми «Ещё» сколько угодно, или /ideas тема — идеи на конкретную тему.
 • «🎬 Разобрать видео» — посмотрю со звуком твои лучшие и худшие ролики и скажу, чем они отличаются.
 • /plan — контент-план на неделю для последнего канала.
 
@@ -647,7 +647,7 @@ def job_report(chat_id, user, name):
     if not allow(chat_id, user, "report"):
         return
     typing(chat_id)
-    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(niche_line(user) + compact_for_ai(a)),
+    text = cached_ai(("report", name.lower()), lambda: ai.report_prompt(niche_line(user) + compact_for_ai(a) + "\n\nТЕКСТЫ АВТОРА (чтобы понять тему и голос):\n" + samples_for_ai(a)[:4500]),
                      heavy=first(user, "report", name))
     send(chat_id, text, fb("report", channel_keyboard(name)))
 
@@ -768,7 +768,21 @@ def job_videos(chat_id, user, name):
 past_ideas: dict[tuple[int, str], list[str]] = {}
 
 
-TEASER_IDEAS = 3
+TEASER_IDEAS = 2
+
+
+def channel_dna(name: str, a: dict) -> str:
+    """«ДНК канала» — профиль автора для идей. Считается раз в неделю на канал."""
+    dna = storage.get_dna(name, time.time())
+    if dna:
+        return dna
+    try:
+        dna = ai.ask(ai.dna_prompt(compact_for_ai(a), samples_for_ai(a)), tag="dna", heavy=True, max_tokens=1500)
+        storage.set_dna(name, dna, time.time())
+        return dna
+    except Exception as e:
+        log.warning("dna failed: %s", e)
+        return ""
 
 
 def split_ideas(text: str, keep: int = TEASER_IDEAS) -> tuple[str, str]:
@@ -792,16 +806,17 @@ def job_ideas(chat_id, user, name, focus=None):
         return
     key = (user["id"], name.lower(), (focus or "").lower())
     prev = past_ideas.get(key, [])
-    send(chat_id, ("Придумываю ещё 10 идей" if prev else "Придумываю 10 идей для съёмок") + f" для @{name}" + (f" на тему «{focus}»" if focus else "") + "… ⏳")
+    send(chat_id, ("Придумываю ещё 5 идей" if prev else "Изучаю канал и придумываю 5 сильных идей") + f" для @{name}" + (f" на тему «{focus}»" if focus else "") + "… около минуты ⏳")
     typing(chat_id)
     a = get_channel(name)
     if not a["ok"]:
         send(chat_id, "Не нашёл постов с просмотрами.")
         return
     previous = "\n".join(prev)[-6000:] or None
-    heavy = not prev and first(user, "ideas", name + "|" + (focus or ""))  # «ещё идеи» — всегда дешёвая модель
     ins, used = insights_block(user)
-    text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins), tag="ideas", heavy=heavy)
+    dna = channel_dna(name, a)
+    text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins, dna=dna,
+                                  samples=samples_for_ai(a)), tag="ideas", heavy=True, max_tokens=3500)
     if used and not prev:
         text += "\n\n🧠 Учёл: " + ", ".join(used)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
@@ -811,7 +826,7 @@ def job_ideas(chat_id, user, name, focus=None):
         # бесплатная проба: показываем 3 идеи, остальные — после подписки
         shown, locked = split_ideas(text)
         storage.set_locked_ideas(user["id"], locked)
-        rest = len([ln for ln in locked.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]) or 7
+        rest = len([ln for ln in locked.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]) or 3
         send(
             chat_id,
             shown + f"\n\n🔒 Ещё {rest} идей уже готовы — открываются в подписке.",
@@ -859,7 +874,7 @@ def job_plan(chat_id, user, name, week=None):
     track(user, "plan")
     ins, used = insights_block(user)
     text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins)),
-                     lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a), week, ins),
+                     lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a) + "\n\nДНК КАНАЛА:\n" + channel_dna(name, a), week, ins),
                      heavy=first(user, "plan", name))
     if used:
         text += "\n\n🧠 Учёл: " + ", ".join(used)

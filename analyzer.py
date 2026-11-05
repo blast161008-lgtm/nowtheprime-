@@ -106,17 +106,20 @@ def analyze(info: dict, now: datetime | None = None) -> dict:
         "by_month": by_month,
         "video_top": video_top,
         "video_worst": video_worst,
+        # тексты для понимания автора: лучшие посты полнее + свежие
+        "samples_top": [_brief(p, med, limit=600) for p in sorted(posts, key=lambda p: p["views"], reverse=True)[:8]],
+        "samples_recent": [_brief(p, med, limit=400) for p in sorted(posts, key=lambda p: p["date"], reverse=True)[:8]],
     }
 
 
-def _brief(p, med, media=False):
+def _brief(p, med, media=False, limit=300):
     d = {
         "id": p["id"],
         "views": p["views"],
         "x_median": round(p["views"] / med, 1) if med else 0,
         "type": p["type"],
         "date": p["local"].strftime("%d.%m %H:%M"),
-        "text": (p["text"][:300] + "…") if len(p["text"]) > 300 else p["text"],
+        "text": (p["text"][:limit] + "…") if len(p["text"]) > limit else p["text"],
     }
     if media:
         d["video_url"] = p.get("video_url")
@@ -216,4 +219,15 @@ def compact_for_ai(a: dict) -> str:
     out.append("СЛАБЫЕ ПОСТЫ:")
     for p in a["worst"]:
         out.append(f"- {p['views']} просм. (×{p['x_median']}), {p['type']}, {p['date']}: {p['text'] or '[без текста]'}")
+    return "\n".join(out)
+
+
+def samples_for_ai(a: dict) -> str:
+    """Тексты постов автора — чтобы ИИ понял, о чём канал и как автор говорит."""
+    out = [f"Канал @{a['username']} «{a['title']}». Описание: {a.get('description') or '—'}", "", "ЛУЧШИЕ ПОСТЫ (полнее):"]
+    for p in a.get("samples_top", []):
+        out.append(f"- t.me/{a['username']}/{p['id']} · {p['views']} просм. (×{p['x_median']}) · {p['type']}: {p['text'] or '[без текста]'}")
+    out += ["", "СВЕЖИЕ ПОСТЫ:"]
+    for p in a.get("samples_recent", []):
+        out.append(f"- t.me/{a['username']}/{p['id']} · {p['views']} просм. (×{p['x_median']}) · {p['type']} · {p['date']}: {p['text'] or '[без текста]'}")
     return "\n".join(out)
