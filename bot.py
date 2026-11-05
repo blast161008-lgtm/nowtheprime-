@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import ai
 import ai_media
+import playbook
 import storage
 import video
 from analyzer import analyze, compact_for_ai, samples_for_ai, stats_text
@@ -771,6 +772,11 @@ past_ideas: dict[tuple[int, str], list[str]] = {}
 TEASER_IDEAS = 2
 
 
+def playbook_for(user, extra: str = "") -> str:
+    """Библиотека проверенных форматов под нишу автора."""
+    return playbook.block(storage.get_niche(user["id"]) or extra)
+
+
 def channel_dna(name: str, a: dict) -> str:
     """«ДНК канала» — профиль автора для идей. Считается раз в неделю на канал."""
     dna = storage.get_dna(name, time.time())
@@ -816,7 +822,8 @@ def job_ideas(chat_id, user, name, focus=None):
     ins, used = insights_block(user)
     dna = channel_dna(name, a)
     text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins, dna=dna,
-                                  samples=samples_for_ai(a)), tag="ideas", heavy=True, max_tokens=3500)
+                                  samples=samples_for_ai(a), playbook=playbook_for(user, dna[:300]),
+                                  spec=playbook.IDEA_SPEC), tag="ideas", heavy=True, max_tokens=4000)
     if used and not prev:
         text += "\n\n🧠 Учёл: " + ", ".join(used)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
@@ -996,10 +1003,10 @@ def job_insta(chat_id, user, items, note):
     for i, fid in enumerate(items[:10], 1):
         parts.append(f"Скриншот {i}:")
         parts.append(video.to_jpeg(tg_download(fid)))
-    parts.append(ai.insta_outro())
+    parts.append(ai.insta_outro(playbook_for(user, note or ""), playbook.IDEA_SPEC))
     track(user, "insta")
     typing(chat_id)
-    send(chat_id, ai.ask(parts, heavy=True, tag="insta"),
+    send(chat_id, ai.ask(parts, heavy=True, tag="insta", max_tokens=5500),
          fb("insta", [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]]))
 
 
@@ -1154,10 +1161,10 @@ def job_reels_compare(chat_id, user, sess):
             parts.append(video.to_jpeg(tg_download(fid)))
         except Exception:
             pass
-    parts.append(ai.reels_compare_outro())
+    parts.append(ai.reels_compare_outro(playbook_for(user, sess.get("note") or ""), playbook.IDEA_SPEC))
     track(user, "reels")
     typing(chat_id)
-    text = ai.ask(parts, heavy=True, tag="reels", max_tokens=5000)
+    text = ai.ask(parts, heavy=True, tag="reels", max_tokens=6000)
     remember(user, "reels", text)
     send(chat_id, text, fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
 
