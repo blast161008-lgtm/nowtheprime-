@@ -203,7 +203,46 @@ def ask_niche(chat_id):
 
 def niche_line(user) -> str:
     n = storage.get_niche(user["id"])
-    return f"Ниша автора (со слов автора): {n}. Учитывай её во всех советах.\n\n" if n else ""
+    out = f"Ниша автора (со слов автора): {n}. Учитывай её во всех советах.\n\n" if n else ""
+    liked = storage.get_liked(user["id"])[:4]
+    if liked:
+        out += ("ИДЕИ, КОТОРЫЕ АВТОРУ ПОНРАВИЛИСЬ (предлагай больше такого типа — по уровню конкретики, теме и подаче, "
+                "но не повторяй их):\n" + "\n---\n".join(liked) + "\n\n")
+    return out
+
+
+def idea_blocks(text: str) -> dict:
+    """{номер: текст идеи} из ответа с идеями."""
+    blocks, cur = {}, None
+    for ln in text.splitlines():
+        m = re.match(r"^\s*(\d{1,2})[.)]\s", ln)
+        if m:
+            cur = int(m.group(1))
+            blocks[cur] = ln.strip()
+        elif cur is not None and ln.strip():
+            blocks[cur] += "\n" + ln.strip()
+    return blocks
+
+
+def like_row(user, text: str):
+    """Сохраняет идеи и даёт кнопки ❤️ 1…N, чтобы отметить понравившиеся."""
+    nums = sorted(idea_blocks(text))[:10]
+    if not nums:
+        return []
+    storage.set_last_ideas(user["id"], text)
+    btns = [{"text": f"❤️ {n}", "callback_data": f"like:{n}"} for n in nums]
+    return [btns[:5], btns[5:10]] if len(btns) > 5 else [btns]
+
+
+def on_like(chat_id, user, n: int):
+    idea = idea_blocks(storage.get_last_ideas(user["id"])).get(n)
+    if not idea:
+        send(chat_id, "Не нашёл эту идею — пришли ещё раз «Идеи», и отметь заново 🙏")
+        return
+    storage.add_liked(user["id"], idea)
+    storage.day_incr(today(), "likes")
+    send(chat_id, f"Запомнил идею №{n} ❤️ Буду предлагать больше такого — по теме и подаче.")
+    notify_admins(f"❤️ {who(user)} отметил идею: {idea.splitlines()[0][:150]}")
 
 
 INSIGHT_NAMES = {"compare": "Сравнение с конкурентами", "video": "Разбор видео канала", "reels": "Разбор роликов Inst/TikTok"}
@@ -249,7 +288,7 @@ def daily_summary_loop():
                     lines.append("Запросы: " + ", ".join(f"{FB_NAMES[k]} — {v}" for k, v in sorted(acts, key=lambda x: -x[1])))
                 else:
                     lines.append("Запросов к ИИ сегодня не было.")
-                lines.append(f"Оценки: 👍 {d.get('fb_up', 0)} / 👎 {d.get('fb_down', 0)}")
+                lines.append(f"Оценки: 👍 {d.get('fb_up', 0)} / 👎 {d.get('fb_down', 0)} · ❤️ идей: {d.get('likes', 0)}")
                 notify_admins("\n".join(lines))
         except Exception as e:
             log.warning("summary failed: %s", e)
@@ -837,8 +876,8 @@ def job_ideas(chat_id, user, name, focus=None):
         send(
             chat_id,
             shown + f"\n\n🔒 Ещё {rest} идей уже готовы — открываются в подписке.",
-            [[{"text": f"🔓 Открыть остальные {rest} — подписка {PRICE} ₽", "callback_data": "pay"}],
-             [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]],
+            like_row(user, shown) + [[{"text": f"🔓 Открыть остальные {rest} — подписка {PRICE} ₽", "callback_data": "pay"}],
+                                     [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]],
         )
         return
     cb = f"idea:{name}" + (f"|{focus}" if focus else "")
@@ -847,7 +886,8 @@ def job_ideas(chat_id, user, name, focus=None):
     send(
         chat_id,
         text + "\n\nХочешь идеи на конкретную тему — напиши, например: /ideas бренд одежды",
-        fb("ideas", [[{"text": "🔁 Ещё идеи", "callback_data": cb}], [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]]),
+        like_row(user, text) + fb("ideas", [[{"text": "🔁 Ещё идеи", "callback_data": cb}],
+                                            [{"text": "📅 План на неделю", "callback_data": f"plan:{name}"}]]),
     )
 
 
@@ -1006,7 +1046,8 @@ def job_insta(chat_id, user, items, note):
     parts.append(ai.insta_outro(playbook_for(user, note or ""), playbook.IDEA_SPEC))
     track(user, "insta")
     typing(chat_id)
-    send(chat_id, ai.ask(parts, heavy=True, tag="insta", max_tokens=5500),
+    text = ai.ask(parts, heavy=True, tag="insta", max_tokens=5500)
+    send(chat_id, text, like_row(user, text.split("5 ИДЕЙ", 1)[-1]) +
          fb("insta", [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]]))
 
 
@@ -1166,7 +1207,8 @@ def job_reels_compare(chat_id, user, sess):
     typing(chat_id)
     text = ai.ask(parts, heavy=True, tag="reels", max_tokens=6000)
     remember(user, "reels", text)
-    send(chat_id, text, fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
+    send(chat_id, text, like_row(user, text.split("5 ИДЕЙ", 1)[-1]) +
+         fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
 
 
 def handle_media(msg, user) -> bool:
@@ -1429,6 +1471,8 @@ def handle_callback(cb: dict):
         ask_week(chat_id, user, data[5:])
     elif data == "help_reel":
         send(chat_id, HELP_REEL)
+    elif data.startswith("like:") and data[5:].isdigit():
+        on_like(chat_id, user, int(data[5:]))
     elif data.startswith("fb:"):
         on_feedback(cb, user, data)
     elif data.startswith("niche:"):

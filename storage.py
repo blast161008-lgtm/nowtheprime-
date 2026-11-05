@@ -344,6 +344,33 @@ def set_dna(channel: str, text: str, ts: float):
     _safe("SET", f"dna:{channel.lower()}", _json.dumps({"ts": int(ts), "text": text[:3000]}, ensure_ascii=False))
 
 
+def set_last_ideas(uid, text: str):
+    _safe("SET", f"u:{uid}:last_ideas", text[:8000])
+
+
+def get_last_ideas(uid) -> str:
+    return _safe("GET", f"u:{uid}:last_ideas") or ""
+
+
+def add_liked(uid, idea: str, keep: int = 8):
+    import json as _json
+    try:
+        items = _json.loads(_safe("GET", f"u:{uid}:liked") or "[]")
+    except Exception:
+        items = []
+    if idea not in items:
+        items.insert(0, idea[:700])
+    _safe("SET", f"u:{uid}:liked", _json.dumps(items[:keep], ensure_ascii=False))
+
+
+def get_liked(uid) -> list:
+    import json as _json
+    try:
+        return _json.loads(_safe("GET", f"u:{uid}:liked") or "[]")
+    except Exception:
+        return []
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
