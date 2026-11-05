@@ -43,7 +43,7 @@ PERIODS = {"m": (SUB_DAYS, 1, "месяц"), "y": (365, YEAR_MONTHS_PAID, "го�
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Improvelab_bot")
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
 # месячные лимиты подписки: тяжёлые функции отдельно, остальное — общий пул "text"
-QUOTAS = json.loads(os.getenv("QUOTAS", '{"reels": 3, "video": 3, "insta": 3, "reel": 15, "text": 30}'))
+QUOTAS = json.loads(os.getenv("QUOTAS", '{"reels": 2, "video": 2, "insta": 3, "reel": 10, "text": 15}'))
 QUOTA_BUCKET = {"report": "text", "ideas": "text", "plan": "text", "compare": "text"}
 QUOTA_NAMES = {"reels": "разборов по роликам", "video": "разборов видео канала", "insta": "разборов по скриншотам",
                "reel": "проверок рилсов", "text": "разборов, идей, планов и сравнений"}
@@ -734,7 +734,7 @@ def job_compare(chat_id, user, mine, rivals):
     typing(chat_id)
     key = ("compare", mine.lower()) + tuple(sorted(x["username"].lower() for x in a_riv))
     text = cached_ai(key, lambda: ai.compare_prompt(niche_line(user) + compact_for_ai(a_mine), [compact_for_ai(x) for x in a_riv]),
-                     max_tokens=5000, heavy=first(user, "compare", "|".join(key[1:])))
+                     max_tokens=4000, heavy=False)
     remember(user, "compare", text)
     send(chat_id, text, fb("compare", [[{"text": "📅 План с учётом сравнения", "callback_data": f"plan:{mine}"}],
                                        [{"text": "💡 Идеи с учётом сравнения", "callback_data": f"idea:{mine}"}]]))
@@ -803,7 +803,7 @@ def job_videos(chat_id, user, name):
     parts.append(ai.video_outro(heard=heard > 0))
     track(user, "video")
     typing(chat_id)
-    text = cached_ai(("video", name.lower()), lambda: parts, heavy=True)
+    text = cached_ai(("video", name.lower()), lambda: parts, heavy=False)
     remember(user, "video", text)
     send(chat_id, text, kb)
 
@@ -882,7 +882,7 @@ def channel_dna(name: str, a: dict) -> str:
     if dna:
         return dna
     try:
-        dna = ai.ask(ai.dna_prompt(compact_for_ai(a), samples_for_ai(a)), tag="dna", heavy=True, max_tokens=1500)
+        dna = ai.ask(ai.dna_prompt(compact_for_ai(a), samples_for_ai(a)), tag="dna", heavy=True, max_tokens=1200)
         storage.set_dna(name, dna, time.time())
         return dna
     except Exception as e:
@@ -923,7 +923,7 @@ def job_ideas(chat_id, user, name, focus=None):
     dna = channel_dna(name, a)
     text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins, dna=dna,
                                   samples=samples_for_ai(a), playbook=playbook_for(user, dna[:300]),
-                                  spec=playbook.IDEA_SPEC), tag="ideas", heavy=True, max_tokens=4000)
+                                  spec=playbook.IDEA_SPEC), tag="ideas", heavy=True, max_tokens=2600)
     if used and not prev:
         text += "\n\n🧠 Учёл: " + ", ".join(used)
     titles = [ln.strip() for ln in text.splitlines() if re.match(r"^\d{1,2}[.)]\s", ln.strip())]
@@ -983,7 +983,7 @@ def job_plan(chat_id, user, name, week=None):
     ins, used = insights_block(user)
     text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins)),
                      lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a) + "\n\nДНК КАНАЛА:\n" + channel_dna(name, a), week, ins),
-                     heavy=first(user, "plan", name))
+                     heavy=False)
     if used:
         text += "\n\n🧠 Учёл: " + ", ".join(used)
     send(chat_id, text, fb("plan"))
@@ -1034,35 +1034,18 @@ def job_reel(chat_id, user, file_id, caption):
             how = ("Ролик прикреплён целиком — ты ВИДИШЬ картинку и СЛЫШИШЬ звук (музыку, голос). "
                    "Указывай моменты по секундам.")
             prompt = ai.reel_intro(meta, caption, context, how=how) + "\n\n" + ai.reel_outro(ai_media.SOUND_BLOCK)
-            obs = None
-            # если прокси откажет из-за оценки стоимости — пробуем ещё легче
+            # Gemini смотрит и слушает ролик и сам пишет разбор — одна дешёвая модель (вариант «смешанный»)
             for opts in ({}, {"height": 240, "fps": 2, "crf": 38, "abr": "32k", "max_sec": 60}):
                 small = video.compress_for_ai(data, **opts)
                 log.info("gemini reel payload %d KB (%s)", len(small) // 1024, opts or "default")
                 try:
                     typing(chat_id)
-                    obs = ai_media.describe_video(small)
-                    break
+                    send(chat_id, ai_media.ask_gemini_video(small, prompt + "\n\n" + playbook.ANTI_AI, max_tokens=4000), kb)
+                    return
                 except RuntimeError as e:
                     if "402" not in str(e):
                         raise
                     log.warning("gemini 402 at %d KB, trying lighter", len(small) // 1024)
-            if obs:
-                # Gemini — глаза и уши, Claude — продюсер, который пишет разбор
-                how2 = ("Модель, которая посмотрела и ПРОСЛУШАЛА ролик целиком, описала его по секундам:\n\n" + obs +
-                        "\n\nНиже — ключевые кадры, чтобы ты видел картинку сам. Звук оценивай по описанию.")
-                parts = [ai.reel_intro(meta, caption, context, how=how2)]
-                for i, (label, img) in enumerate(frames[:5], 1):
-                    parts.append(f"Кадр {i}: {label}")
-                    parts.append(img)
-                parts.append(ai.reel_outro(ai_media.SOUND_BLOCK))
-                typing(chat_id)
-                try:
-                    send(chat_id, ai.ask(parts, heavy=True, tag="reel"), kb)
-                except Exception as e:
-                    log.warning("claude reel failed, gemini answers directly: %s", e)
-                    send(chat_id, ai_media.ask_gemini_video(small, prompt, max_tokens=4000), kb)
-                return
         except Exception as e:
             log.warning("gemini video failed, fallback to frames: %s", e)
 
@@ -1107,7 +1090,7 @@ def job_insta(chat_id, user, items, note):
     parts.append(ai.insta_outro(playbook_for(user, note or ""), playbook.IDEA_SPEC))
     track(user, "insta")
     typing(chat_id)
-    text = ai.ask(parts, heavy=True, tag="insta", max_tokens=5500)
+    text = ai.ask(parts, heavy=False, tag="insta", max_tokens=4500)
     send(chat_id, text, like_row(user, text.split("5 ИДЕЙ", 1)[-1]) +
          fb("insta", [[{"text": "📲 Проверить рилс", "callback_data": "help_reel"}]]))
 
@@ -1270,7 +1253,7 @@ def job_reels_compare(chat_id, user, sess):
     parts.append(ai.reels_compare_outro(playbook_for(user, sess.get("note") or ""), playbook.IDEA_SPEC))
     track(user, "reels")
     typing(chat_id)
-    text = ai.ask(parts, heavy=True, tag="reels", max_tokens=6000)
+    text = ai.ask(parts, heavy=True, tag="reels", max_tokens=3800)
     remember(user, "reels", text)
     send(chat_id, text, like_row(user, text.split("5 ИДЕЙ", 1)[-1]) +
          fb("reels", [[{"text": "📲 Проверить новый рилс", "callback_data": "help_reel"}]]))
