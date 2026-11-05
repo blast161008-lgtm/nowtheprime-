@@ -88,6 +88,16 @@ def ask_gemini_video(video: bytes, prompt: str, max_tokens: int = 6000) -> str:
     raise last or RuntimeError("gemini failed")
 
 
+def selftest_research():
+    if os.getenv("RESEARCH_SELFTEST"):
+        try:
+            r = research_niche("бокс")
+            log.info("research selftest: grounded=%s sources=%d model=%s text=%s", r["grounded"], len(r["sources"]),
+                     r["model"], r["text"][:300].replace("\n", " "))
+        except Exception as e:
+            log.warning("research selftest FAILED: %s", e)
+
+
 def selftest(make_clip):
     """При старте: проверяем, принимает ли прокси видео для Gemini (1-секундный ролик, копейки)."""
     if not gemini_enabled():
@@ -176,3 +186,54 @@ OBSERVE = """Ты — глаза и уши продюсера. Посмотри 
 def describe_video(video: bytes) -> str:
     """Gemini описывает ролик (картинка + звук) по секундам — потом Claude пишет по этому описанию советы."""
     return ask_gemini_video(video, OBSERVE, max_tokens=3000)
+
+
+# ---------- исследование ниши через поиск Google (Gemini grounding) ----------
+
+RESEARCH_PROMPT = """Ты — аналитик коротких видео. С помощью поиска Google найди, какие ролики (Instagram Reels, TikTok, YouTube Shorts)
+РЕАЛЬНО залетают у авторов в нише «{niche}» в 2025–2026 годах — в первую очередь русскоязычных, затем зарубежных.
+
+Нужны ФАКТЫ из найденного, не общие советы:
+1. Конкретные авторы/аккаунты ниши, у которых залетают ролики (ники), и чем они берут.
+2. 8–12 повторяющихся форматов ниши: как устроен ролик, хук первой секунды, длина, приёмы монтажа и звука,
+   пример конкретного ролика (у кого, о чём, сколько просмотров — если есть в источниках).
+3. Что в этой нише НЕ работает или уже приелось.
+
+Если по нише мало данных — скажи прямо и опирайся на самые близкие ниши (назови какие).
+Пиши по-русски, плотно, без воды, до 4000 знаков. Не выдумывай авторов, цифры и ролики — только то, что нашёл."""
+
+
+def research_niche(niche: str) -> dict:
+    """{"text", "sources": [(title, uri)], "grounded": bool, "model"}. Бросает исключение, если не вышло."""
+    base = os.getenv("GEMINI_BASE_URL") or os.getenv("AI_BASE_URL", "https://generativelanguage.googleapis.com")
+    last = None
+    for model in _models():
+        try:
+            data = _post(
+                f"{base.rstrip('/')}/v1beta/models/{model}:generateContent",
+                {"x-goog-api-key": os.environ["AI_API_KEY"]},
+                {"contents": [{"role": "user", "parts": [{"text": RESEARCH_PROMPT.format(niche=niche)}]}],
+                 "tools": [{"google_search": {}}],
+                 "generationConfig": {"maxOutputTokens": 5000}},
+                timeout=240,
+            )
+        except urllib.error.HTTPError as e:
+            body = e.read()[:400].decode(errors="ignore")
+            log.warning("research model=%s HTTP %s: %s", model, e.code, body)
+            last = RuntimeError(f"research HTTP {e.code}: {body[:200]}")
+            continue
+        cand = (data.get("candidates") or [{}])[0]
+        text = "".join(p.get("text", "") for p in cand.get("content", {}).get("parts", []) if not p.get("thought")).strip()
+        gm = cand.get("groundingMetadata") or {}
+        sources = []
+        for ch in gm.get("groundingChunks") or []:
+            web = ch.get("web") or {}
+            if web.get("uri"):
+                sources.append((web.get("title") or web["uri"], web["uri"]))
+        u = data.get("usageMetadata") or {}
+        log.info("AI usage task=research model=%s in=%s out=%s grounded=%s sources=%d", model,
+                 u.get("promptTokenCount"), u.get("candidatesTokenCount"), bool(gm), len(sources))
+        if text:
+            return {"text": text, "sources": sources[:12], "grounded": bool(gm), "model": model}
+        last = RuntimeError("research: empty answer")
+    raise last or RuntimeError("research failed")

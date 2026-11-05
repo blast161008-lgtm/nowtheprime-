@@ -160,7 +160,7 @@ def track(user: dict, event: str) -> bool:
 
 
 # ---------- обратная связь 👍/👎 ----------
-FB_NAMES = {"report": "разбор канала", "compare": "сравнение", "video": "видео канала", "ideas": "идеи", "plan": "план",
+FB_NAMES = {"research": "анализ ниши", "report": "разбор канала", "compare": "сравнение", "video": "видео канала", "ideas": "идеи", "plan": "план",
             "reel": "проверка рилса", "insta": "скриншоты", "reels": "разбор по роликам"}
 pending_fb: dict[int, str] = {}
 voted: set = set()
@@ -372,6 +372,7 @@ START_SHORT = """Привет! Я ИИ-продюсер 🎬
 
 MENU_START = [
     [{"text": "📢 Разобрать мой Telegram-канал", "callback_data": "tg_help"}],
+    [{"text": "🔍 Что залетает в моей нише", "callback_data": "nr"}],
     [{"text": "📲 Проверить рилс до публикации", "callback_data": "help_reel"}],
     [{"text": "🎞 Разбор Inst / TikTok по роликам", "callback_data": "vs_start"}],
     [{"text": "📊 По скриншотам статистики", "callback_data": "help_insta"}],
@@ -380,6 +381,7 @@ MENU_START = [
 
 
 MENU_INSTA = [
+    [{"text": "🔍 Что залетает в моей нише", "callback_data": "nr"}],
     [{"text": "📲 Проверить рилс", "callback_data": "help_reel"}],
     [{"text": "🎞 Разбор Inst / TikTok по роликам", "callback_data": "vs_start"}],
     [{"text": "📊 По скриншотам статистики", "callback_data": "help_insta"}],
@@ -392,6 +394,7 @@ HELP_VS = """🎞 Разбор Inst / TikTok по роликам
 1. Пришли сюда 2–6 своих роликов (лучшие и слабые) — как обычное видео, можно по одному или пачкой.
    Свои рилсы/тиктоки можно сохранить на телефон прямо из приложения.
 2. В подписи к каждому напиши просмотры: «12к», «800», «1.2м». Можно добавить «хит» или «слабый».
+   Можно прислать и ЧУЖИЕ залетевшие ролики из твоей ниши (запись экрана / скачанный тикток) — подпиши «чужой 2м».
 3. По желанию — скрин статистики.
 4. Нажми «✅ Готово — разобрать».
 
@@ -811,6 +814,63 @@ past_ideas: dict[tuple[int, str], list[str]] = {}
 TEASER_IDEAS = 2
 
 
+research_locks: dict[str, threading.Lock] = {}
+
+
+def niche_research(user, wait: bool = True) -> dict | None:
+    """Исследование ниши через поиск (кэш 14 дней). wait=False — запустить в фоне."""
+    niche = (storage.get_niche(user["id"]) or "").strip()
+    if not niche or not ai_media.gemini_enabled():
+        return None
+    hit = storage.get_research(niche, time.time())
+    if hit:
+        return hit
+    if not wait:
+        threading.Thread(target=niche_research, args=(user, True), daemon=True).start()
+        return None
+    with lock:
+        lk = research_locks.setdefault(niche.lower(), threading.Lock())
+    with lk:
+        hit = storage.get_research(niche, time.time())
+        if hit:
+            return hit
+        try:
+            res = ai_media.research_niche(niche)
+        except Exception as e:
+            log.warning("niche research failed: %s", e)
+            return None
+        storage.set_research(niche, res, time.time())
+        return res
+
+
+def niche_block(user) -> str:
+    r = niche_research(user)
+    if not r:
+        return ""
+    src = "найдено поиском Google" if r.get("grounded") else "общий анализ модели (поиск не сработал)"
+    return (f"\nАНАЛИЗ НИШИ — что реально залетает у ДРУГИХ авторов этой ниши ({src}). Опирай идеи на эти форматы "
+            f"и примеры, адаптируя под автора:\n{r['text'][:3500]}\n")
+
+
+def job_niche_report(chat_id, user):
+    if not storage.get_niche(user["id"]):
+        send(chat_id, "Сначала скажи, о чём ты снимаешь 👇")
+        ask_niche(chat_id)
+        return
+    niche = storage.get_niche(user["id"])
+    send(chat_id, f"Изучаю, что сейчас залетает в нише «{niche}»: ищу авторов, форматы и примеры… до 1–2 минут 🔍")
+    typing(chat_id)
+    r = niche_research(user)
+    if not r:
+        send(chat_id, "Не получилось исследовать нишу 😕 Попробуй позже.")
+        return
+    track(user, "research")
+    srcs = "\n".join(f"• {t[:70]} — {u}" for t, u in r.get("sources", [])[:8])
+    note = "" if r.get("grounded") else "\n\n(Поиск в этот раз не сработал — это общий анализ без свежих ссылок.)"
+    send(chat_id, f"🔍 Что залетает в нише «{niche}»\n\n{r['text']}" + (f"\n\nИсточники:\n{srcs}" if srcs else "") + note,
+         fb("research", [[{"text": "💡 Идеи на основе этого", "callback_data": f"idea:{home_of(user)}"}]] if home_of(user) else None))
+
+
 def playbook_for(user, extra: str = "") -> str:
     """Библиотека проверенных форматов под нишу автора."""
     return playbook.block(storage.get_niche(user["id"]) or extra)
@@ -859,6 +919,7 @@ def job_ideas(chat_id, user, name, focus=None):
         return
     previous = "\n".join(prev)[-6000:] or None
     ins, used = insights_block(user)
+    ins = niche_block(user) + ins
     dna = channel_dna(name, a)
     text = ai.ask(ai.ideas_prompt(niche_line(user) + compact_for_ai(a), focus, previous, ins, dna=dna,
                                   samples=samples_for_ai(a), playbook=playbook_for(user, dna[:300]),
@@ -1039,7 +1100,7 @@ def job_insta(chat_id, user, items, note):
         return
     send(chat_id, f"Читаю скриншоты ({len(items)}) и разбираю статистику… около минуты 📊")
     typing(chat_id)
-    parts = [ai.insta_intro((niche_line(user) + (note or "")).strip() or None)]
+    parts = [ai.insta_intro((niche_line(user) + niche_block(user) + (note or "")).strip() or None)]
     for i, fid in enumerate(items[:10], 1):
         parts.append(f"Скриншот {i}:")
         parts.append(video.to_jpeg(tg_download(fid)))
@@ -1125,9 +1186,10 @@ def vs_add(msg, user, vid=None, shot=None):
         return
     caption = (msg.get("caption") or "").strip()
     views, label = parse_views(caption)
-    sess["items"].append({"file_id": vid["file_id"], "views": views, "label": label, "caption": caption})
+    foreign = bool(re.search(r"чуж|конкурент|не мой|не моё|не мое|референс", caption.lower()))
+    sess["items"].append({"file_id": vid["file_id"], "views": views, "label": label, "caption": caption, "foreign": foreign})
     n = len(sess["items"])
-    info = (f"{views:,} просмотров".replace(",", " ") if views else "просмотры не указаны") + (f", {label}" if label else "")
+    info = (f"{views:,} просмотров".replace(",", " ") if views else "просмотры не указаны") + (f", {label}" if label else "") + (", чужой хит" if foreign else "")
     send(chat_id, f"Ролик {n} принял ({info}). " + ("Пришли ещё или жми «Готово»." if n >= 2 else "Пришли ещё хотя бы один."),
          VS_DONE_KB if n >= 2 else None)
 
@@ -1137,7 +1199,7 @@ def vs_go(chat_id, user):
     if not sess or len(sess["items"]) < 2:
         send(chat_id, "Нужно хотя бы 2 ролика — пришли ещё.")
         return
-    if not any(it["views"] or it["label"] for it in sess["items"]):
+    if not any(it["views"] or it["label"] or it.get("foreign") for it in sess["items"]):
         sess["await_views"] = True
         send(chat_id, f"Чтобы сравнить, напиши просмотры роликов одним сообщением по порядку ({len(sess['items'])} шт.), например: 12к, 3к, 800")
         return
@@ -1158,13 +1220,16 @@ def job_reels_compare(chat_id, user, sess):
         if it["views"] is not None:
             return it["views"]
         return {"хит": 10**12, "слабый": -1}.get(it["label"], 0)
-    items = sorted(items, key=score, reverse=True)
-    n_strong = max(1, (len(items) + 1) // 2)
-    parts = [ai.reels_compare_intro((niche_line(user) + (sess.get("note") or "")).strip() or None)]
+    own = sorted([it for it in items if not it.get("foreign")], key=score, reverse=True)
+    items = own + [it for it in items if it.get("foreign")]
+    n_strong = max(1, (len(own) + 1) // 2)
+    parts = [ai.reels_compare_intro((niche_line(user) + niche_block(user) + (sess.get("note") or "")).strip() or None)]
     got = 0
     for idx, it in enumerate(items, 1):
         typing(chat_id)
         group = "СИЛЬНЫЙ" if (it["label"] == "хит" or (it["label"] != "слабый" and idx <= n_strong)) else "СЛАБЫЙ"
+        if it.get("foreign"):
+            group = "ЧУЖОЙ ХИТ ИЗ НИШИ (не автора)"
         try:
             data = tg_download(it["file_id"])
         except Exception as e:
@@ -1306,6 +1371,12 @@ def handle_message(msg: dict):
     if cmd == "/niche":
         ask_niche(chat_id)
         return
+    if cmd == "/research":
+        arg = text.split(maxsplit=1)[1].strip() if len(text.split()) > 1 else ""
+        if arg and user["id"] in ADMIN_IDS:  # админ: исследовать любую нишу
+            storage.set_niche(user["id"], arg)
+        run_job(chat_id, user, job_niche_report)
+        return
     if cmd == "/invite":
         show_invite(chat_id, user)
         return
@@ -1346,7 +1417,7 @@ def handle_message(msg: dict):
         return
     if cmd == "/stats" and user["id"] in ADMIN_IDS:
         st = storage.all_stats()
-        acts = ("report", "compare", "plan", "video", "ideas", "reel", "insta", "reels")
+        acts = ("report", "compare", "plan", "video", "ideas", "reel", "insta", "reels", "research")
         total = sum(int(u.get(k, 0)) for u in st.values() for k in acts)
         day_ago = time.time() - 86400
         active = sum(1 for u in st.values() if float(u.get("last", 0)) > day_ago)
@@ -1391,7 +1462,9 @@ def handle_message(msg: dict):
     if not cmd and user["id"] in pending_niche and not chans:
         pending_niche.discard(user["id"])
         storage.set_niche(user["id"], text)
-        send(chat_id, f"Записал: {text[:80]} ✍️ Теперь пришли свой канал (@ник) или ролик 👇")
+        niche_research(user, wait=False)
+        send(chat_id, f"Записал: {text[:80]} ✍️ Теперь пришли свой канал (@ник) или ролик 👇",
+             [[{"text": "🔍 Что залетает в моей нише", "callback_data": "nr"}]])
         return
     if not cmd and user["id"] in pending_fb and not chans:
         kind = pending_fb.pop(user["id"])
@@ -1471,6 +1544,8 @@ def handle_callback(cb: dict):
         ask_week(chat_id, user, data[5:])
     elif data == "help_reel":
         send(chat_id, HELP_REEL)
+    elif data == "nr":
+        run_job(chat_id, user, job_niche_report)
     elif data.startswith("like:") and data[5:].isdigit():
         on_like(chat_id, user, int(data[5:]))
     elif data.startswith("fb:"):
@@ -1483,7 +1558,9 @@ def handle_callback(cb: dict):
         else:
             label = dict(NICHES).get(key, key)
             storage.set_niche(user["id"], label.split(" ", 1)[1] if " " in label else label)
-            send(chat_id, f"Записал: {label} ✅ Теперь пришли свой канал (@ник) или ролик 👇")
+            niche_research(user, wait=False)
+            send(chat_id, f"Записал: {label} ✅ Теперь пришли свой канал (@ник) или ролик 👇",
+                 [[{"text": "🔍 Что залетает в моей нише", "callback_data": "nr"}]])
     elif data == "tg_help":
         send(chat_id, "Пришли ник своего канала (@канал) или ссылку t.me/… — канал должен быть публичным. Сделаю разбор за полгода 📊")
     elif data == "help_all":
@@ -1546,6 +1623,7 @@ def set_commands():
             {"command": "shots", "description": "Разбор по скриншотам статистики"},
             {"command": "mychannel", "description": "Мой канал"},
             {"command": "niche", "description": "О чём я снимаю (ниша)"},
+            {"command": "research", "description": "Что залетает в моей нише"},
             {"command": "sub", "description": "Подписка"},
             {"command": "invite", "description": "Пригласить друга — месяц в подарок"},
         ],
@@ -1643,6 +1721,7 @@ def main():
     threading.Thread(target=daily_summary_loop, daemon=True).start()
     video.warmup()
     threading.Thread(target=ai_media.selftest, args=(video.test_clip,), daemon=True).start()
+    threading.Thread(target=ai_media.selftest_research, daemon=True).start()
     base = os.getenv("WEBHOOK_URL") or os.getenv("RENDER_EXTERNAL_URL")
     if base:
         run_webhook(base, int(os.getenv("PORT", "10000")))

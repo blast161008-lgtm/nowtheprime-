@@ -371,6 +371,25 @@ def get_liked(uid) -> list:
         return []
 
 
+def get_research(niche: str, now: float, max_age_days: int = 14):
+    import json as _json
+    raw = _safe("GET", f"research:{niche.lower().strip()[:60]}")
+    if not raw:
+        return None
+    try:
+        d = _json.loads(raw)
+    except Exception:
+        return None
+    return d if now - d.get("ts", 0) <= max_age_days * 86400 else None
+
+
+def set_research(niche: str, data: dict, ts: float):
+    import json as _json
+    d = dict(data, ts=int(ts))
+    d["text"] = d.get("text", "")[:6000]
+    _safe("SET", f"research:{niche.lower().strip()[:60]}", _json.dumps(d, ensure_ascii=False))
+
+
 def track(user: dict, event: str, ts: float) -> bool:
     """Считает события пользователя. Возвращает True, если пользователь новый."""
     uid = user["id"]
