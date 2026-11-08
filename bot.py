@@ -981,7 +981,7 @@ def job_plan(chat_id, user, name, week=None):
         return
     track(user, "plan")
     ins, used = insights_block(user)
-    text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins), ai.plan_days()),
+    text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins), ai.plan_days(), ai._msk_now().hour),
                      lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a) + "\n\nДНК КАНАЛА:\n" + channel_dna(name, a), week, ins),
                      heavy=False)
     if used:

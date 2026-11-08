@@ -165,16 +165,38 @@ def compare_prompt(mine: str, rivals: list[str]) -> str:
 До 3500 знаков."""
 
 
-def plan_days(today=None) -> str:
-    """7 дней начиная с сегодняшнего (МСК): 'пт 06.11, сб 07.11, …'."""
+def _msk_now():
     from datetime import datetime, timedelta, timezone
+    return datetime.now(timezone(timedelta(hours=3)))
+
+
+def plan_start(now=None):
+    """С какого дня план: сегодня, а если уже после 20:00 МСК — с завтра."""
+    from datetime import timedelta
+    now = now or _msk_now()
+    return now.date() + timedelta(days=1 if now.hour >= 20 else 0)
+
+
+def plan_days(now=None) -> str:
+    """7 дней начиная с plan_start (МСК): 'пт 06.11, сб 07.11, …'."""
+    from datetime import timedelta
     names = ["пн", "вт", "ср", "чт", "пт", "сб", "вс"]
-    today = today or datetime.now(timezone(timedelta(hours=3))).date()
-    return ", ".join(f"{names[d.weekday()]} {d:%d.%m}" for d in (today + timedelta(i) for i in range(7)))
+    start = plan_start(now)
+    return ", ".join(f"{names[d.weekday()]} {d:%d.%m}" for d in (start + timedelta(i) for i in range(7)))
 
 
-def plan_prompt(stats: str, week: str | None = None, insights: str = "", today=None) -> str:
-    days = plan_days(today)
+def plan_time_rule(now=None) -> str:
+    now = now or _msk_now()
+    if plan_start(now) == now.date():
+        earliest = min(now.hour + 2, 23)
+        return (f"Сейчас {now:%H:%M} МСК. Пост на сегодня ставь не раньше {earliest}:00 — "
+                "время, которое уже прошло или наступит меньше чем через час, ставить нельзя.")
+    return f"Сейчас {now:%H:%M} МСК, сегодня постить уже поздно — план начинается с завтра."
+
+
+def plan_prompt(stats: str, week: str | None = None, insights: str = "", now=None) -> str:
+    days = plan_days(now)
+    time_rule = plan_time_rule(now)
     if week:
         week_txt = (f"ЧТО У АВТОРА НА ЭТОЙ НЕДЕЛЕ (со слов автора): {week}\n"
                     "Анонсы и продажи — только про это, максимум 2 поста в неделю, остальное — обычный контент. "
@@ -188,13 +210,13 @@ def plan_prompt(stats: str, week: str | None = None, insights: str = "", today=N
 {insights}
 {week_txt}
 
-Составь контент-план на 7 дней, НАЧИНАЯ С СЕГОДНЯШНЕГО ДНЯ. Дни строго в таком порядке и с такими датами:
+Составь контент-план на 7 дней. Дни строго в таком порядке и с такими датами:
 {days}
+{time_rule}
 Каждый день начинай с дня недели и даты из этого списка. Для каждого дня: время публикации (МСК),
 формат, тема и первая строка поста дословно. Если по цифрам лучше постить не каждый день — пропусти день и
 напиши «отдых». Опирайся на то, что у канала уже заходит, и добавь 1–2 эксперимента, пометь их «тест».
 Каждый пост должен быть реально выполним одним человеком за 15–60 минут.
-Если сегодня лучшее время по статистике уже, скорее всего, прошло — поставь на сегодня ближайшее вечернее время.
 В конце — одна строка, по какой цифре через неделю понять, что план сработал.
 
 До 2500 знаков."""
