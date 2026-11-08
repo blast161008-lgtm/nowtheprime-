@@ -967,6 +967,21 @@ def ask_week(chat_id, user, name):
     )
 
 
+def previous_plan_block(prev, a) -> str:
+    """Прошлый план + посты, вышедшие после него."""
+    if not prev or time.time() - prev["ts"] < 20 * 3600:
+        return ""
+    after = [p for p in a.get("fresh", []) if p["ts"] >= prev["ts"] - 3600]
+    days = max(1, round((time.time() - prev["ts"]) / 86400))
+    lines = [f"ПРОШЛЫЙ ПЛАН (выдан {days} дн. назад):", prev["text"][:3500], "",
+             f"ПОСТЫ, КОТОРЫЕ ВЫШЛИ ПОСЛЕ НЕГО ({len(after)} шт.):"]
+    if not after:
+        lines.append("— ни одного поста после прошлого плана")
+    for p in reversed(after):
+        lines.append(f"- {p['date']} · {p['type']} · {p['views']} просм. (×{p['x_median']}): {p['text'] or '[без текста]'}")
+    return "\n".join(lines)
+
+
 def job_plan(chat_id, user, name, week=None):
     if not guard_own(chat_id, user, name) or not allow(chat_id, user, "plan"):
         return
@@ -981,9 +996,19 @@ def job_plan(chat_id, user, name, week=None):
         return
     track(user, "plan")
     ins, used = insights_block(user)
-    text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins), ai.plan_days(), ai._msk_now().hour),
-                     lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a) + "\n\nДНК КАНАЛА:\n" + channel_dna(name, a), week, ins),
+    prev = storage.get_last_plan(user["id"], name)
+    prev_block = previous_plan_block(prev, a)
+    text = cached_ai(("plan", name.lower(), (week or "").lower(), user["id"], ins[:200], len(ins), ai.plan_days(),
+                      ai._msk_now().hour, prev["ts"] if prev else 0),
+                     lambda: ai.plan_prompt(niche_line(user) + compact_for_ai(a) + "\n\nДНК КАНАЛА:\n" + channel_dna(name, a),
+                                            week, ins, previous=prev_block),
                      heavy=False)
+    # сохраняем новый план, только если старый уже «отработал» хотя бы сутки — иначе повторный запрос
+    # в тот же день сравнивал бы план сам с собой
+    if not prev or time.time() - prev["ts"] > 20 * 3600:
+        storage.set_last_plan(user["id"], name, text, time.time())
+    if prev_block:
+        used = list(used) + ["прошлый план"]
     if used:
         text += "\n\n🧠 Учёл: " + ", ".join(used)
     send(chat_id, text, fb("plan"))

@@ -408,3 +408,18 @@ def all_stats() -> dict:
         flat = _safe("HGETALL", f"u:{uid}:stats", default=[]) or []
         out[uid] = dict(zip(flat[::2], flat[1::2]))
     return out
+
+
+def set_last_plan(uid: int, name: str, text: str, ts: float):
+    """Последний план — чтобы следующий не повторял его и учёл, что сделано."""
+    import json
+    _safe("SET", f"u:{uid}:lastplan:{name.lower()}", json.dumps({"text": text[:6000], "ts": ts}), "EX", 30 * 86400)
+
+
+def get_last_plan(uid: int, name: str):
+    import json
+    raw = _safe("GET", f"u:{uid}:lastplan:{name.lower()}")
+    try:
+        return json.loads(raw) if raw else None
+    except Exception:
+        return None

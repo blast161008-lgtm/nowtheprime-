@@ -58,7 +58,7 @@ def analyze(info: dict, now: datetime | None = None) -> dict:
 
     views = [p["views"] for p in posts]
     med = median(views)
-    for p in posts:
+    for p in all_posts:
         p["local"] = p["date"].astimezone(MSK)
 
     dates = sorted(p["date"] for p in posts)
@@ -108,6 +108,12 @@ def analyze(info: dict, now: datetime | None = None) -> dict:
         "video_worst": video_worst,
         # тексты для понимания автора: лучшие посты полнее + свежие
         "samples_top": [_brief(p, med, limit=600) for p in sorted(posts, key=lambda p: p["views"], reverse=True)[:8]],
+        # всё, что вышло за последние 14 дней (вкл. свежие) — чтобы понять, что из плана сделано
+        "fresh": [
+            {"ts": p["date"].timestamp(), **_brief(p, med, limit=200)}
+            for p in sorted(all_posts, key=lambda p: p["date"], reverse=True)
+            if now - p["date"] <= timedelta(days=14)
+        ][:30],
         "samples_recent": [_brief(p, med, limit=400) for p in sorted(posts, key=lambda p: p["date"], reverse=True)[:8]],
     }
 
