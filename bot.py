@@ -36,17 +36,17 @@ ADMIN_IDS = {int(x) for x in re.findall(r"\d+", os.getenv("ADMIN_IDS", ""))}
 DATA_DIR = os.getenv("DATA_DIR", "data")
 MAX_RIVALS = 3
 HOME_CHANGE_DAYS = int(os.getenv("HOME_CHANGE_DAYS", "30"))
-PRICE = int(os.getenv("PRICE", "299"))
+PRICE = int(os.getenv("PRICE", "279"))
 SUB_DAYS = 30
 YEAR_MONTHS_PAID = 10  # год = цена 10 месяцев
 PERIODS = {"m": (SUB_DAYS, 1, "месяц"), "y": (365, YEAR_MONTHS_PAID, "год")}
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Improvelab_bot")
 PAY_DETAILS = os.getenv("PAY_DETAILS", "")  # напр. «+7 900 000-00-00, Т-Банк, Никита Л.»
 # месячные лимиты подписки: тяжёлые функции отдельно, остальное — общий пул "text"
-QUOTAS = json.loads(os.getenv("QUOTAS", '{"reels": 2, "video": 2, "insta": 3, "reel": 10, "text": 15}'))
-QUOTA_BUCKET = {"report": "text", "ideas": "text", "plan": "text", "compare": "text"}
-QUOTA_NAMES = {"reels": "разборов по роликам", "video": "разборов видео канала", "insta": "разборов по скриншотам",
-               "reel": "проверок рилсов", "text": "разборов, идей, планов и сравнений"}
+QUOTAS = json.loads(os.getenv("QUOTAS", '{"plan": 5, "text": 15, "reel": 10, "video": 1, "reels": 1, "insta": 3}'))
+QUOTA_BUCKET = {"report": "text", "ideas": "text", "compare": "text"}  # план — отдельный лимит "plan"
+QUOTA_NAMES = {"plan": "планов на неделю", "reels": "разборов Inst/TikTok по роликам", "video": "разборов видео канала",
+               "insta": "разборов по скриншотам", "reel": "проверок рилсов", "text": "разборов, идей и сравнений"}
 PAYWALL = os.getenv("PAYWALL", "on").lower() not in ("off", "0", "false", "no")
 FREE = {"report": 1, "ideas": 1, "reel": 1, "video": 1}  # бесплатный пробник (скрины Inst/TikTok, план, сравнение — в подписке)
 PAYWALLS = {
@@ -487,7 +487,7 @@ def allow(chat_id, user, kind):
     send(
         chat_id,
         f"{PAYWALLS.get(kind, 'Это — в подписке.')}\n\n"
-        f"Подписка {PRICE} ₽ на {SUB_DAYS} дней: разборы, идеи без ограничений, план на неделю, разбор видео и сравнение с конкурентами для твоего канала.",
+        f"Подписка {PRICE} ₽ на {SUB_DAYS} дней:\n{sub_includes()}",
         [[{"text": f"💳 Оформить подписку — {PRICE} ₽", "callback_data": "pay"}]],
     )
     return False
@@ -505,6 +505,14 @@ def period_price(period) -> int:
     return PRICE * PERIODS[period][1]
 
 
+def sub_includes() -> str:
+    q = QUOTAS
+    rows = [(q.get("plan"), "планов на неделю"), (q.get("text"), "запросов идей, разборов и сравнений (1 запрос = 5 идей)"),
+            (q.get("reel"), "проверок рилса до публикации"), (q.get("video"), "разбор видео канала"),
+            (q.get("reels"), "разбор Inst/TikTok по роликам"), (q.get("insta"), "разбора по скриншотам статистики")]
+    return "\n".join(f"• {n} {t}" for n, t in rows if n)
+
+
 def show_pay(chat_id, user):
     if not PAY_DETAILS:
         send(chat_id, "Оплата скоро появится 🙌")
@@ -515,7 +523,7 @@ def show_pay(chat_id, user):
         extra = f"Подписка уже активна до {time.strftime('%d.%m', time.localtime(until))} — оплата продлит её.\n\n"
     send(
         chat_id,
-        extra + "Выбери срок подписки:\n\n"
+        extra + f"В подписке на месяц:\n{sub_includes()}\n\nВыбери срок:\n\n"
         f"• Месяц — {PRICE} ₽\n"
         f"• Год — {period_price('y')} ₽ (12 месяцев по цене {YEAR_MONTHS_PAID}, 2 в подарок 🎁)",
         [[{"text": f"Месяц — {PRICE} ₽", "callback_data": "pay_m"}],
