@@ -26,6 +26,15 @@ import video
 from analyzer import analyze, compact_for_ai, samples_for_ai, stats_text
 from tg_parser import ChannelError, fetch_channel, normalize_channel
 
+try:  # сеть маленьких ботов (network/) — необязательна: без неё Improve Lab работает как раньше
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location("network_mount", os.path.join(os.path.dirname(os.path.abspath(__file__)), "network", "mount.py"))
+    network_mount = _ilu.module_from_spec(_spec)
+    _spec.loader.exec_module(network_mount)
+except Exception as _e:  # noqa: BLE001
+    network_mount = None
+    logging.getLogger("bot").warning("network disabled: %s", _e)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("bot")
 
@@ -1693,7 +1702,15 @@ def run_webhook(base_url: str, port: int):
             self.end_headers()
 
         def do_POST(self):
-            if self.path != path or self.headers.get("X-Telegram-Bot-Api-Secret-Token") != secret:
+            if self.path != path:
+                # сеть маленьких ботов (папка network/) живёт на этом же сервере — свои пути /tg/<бот>/…
+                body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+                ok = network_mount.dispatch(self.path, self.headers.get("X-Telegram-Bot-Api-Secret-Token"), body) \
+                    if network_mount else None
+                self.send_response(200 if ok else 403)
+                self.end_headers()
+                return
+            if self.headers.get("X-Telegram-Bot-Api-Secret-Token") != secret:
                 self.send_response(403)
                 self.end_headers()
                 return
@@ -1717,10 +1734,14 @@ def run_webhook(base_url: str, port: int):
             except Exception as e:
                 log.warning("keepalive failed: %s", e)
             api("setWebhook", url=base_url.rstrip("/") + path, secret_token=secret, drop_pending_updates=False)
+            if network_mount:
+                network_mount.reregister(base_url)
 
     threading.Thread(target=keepalive, daemon=True).start()
     server = ThreadingHTTPServer(("0.0.0.0", port), H)
     api("setWebhook", url=base_url.rstrip("/") + path, secret_token=secret, drop_pending_updates=False)
+    if network_mount:
+        threading.Thread(target=network_mount.start, args=(base_url,), daemon=True).start()
     log.info("webhook started on :%s", port)
     server.serve_forever()
 
