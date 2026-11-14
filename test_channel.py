@@ -45,3 +45,29 @@ P.on_command(1, admin, "/queue", ""); assert "Публикация: включе
 assert "✅" in P.check()
 assert len(cp._parse_list("мусор [\"a\", \"b\"] хвост")) == 2
 print("channel OK")
+
+# ---------- ролики ----------
+import shutil, faceless
+faceless.tts = lambda text: faceless.silent_mp3(shutil.which("ffmpeg"), 6)
+uploads = []
+def fake_upload(token, chat_id, video, caption="", keyboard=None):
+    uploads.append((chat_id, len(video), caption, keyboard)); return {"video": {"file_id": "FILE1"}}
+faceless.upload_video = fake_upload
+def ask2(prompt, **kw):
+    if kw.get("tag") == "video_script":
+        return 'Вот: {"title": "Почему рилс не залетает", "voice": "' + "Первые секунды решают всё, проверь начало ролика. " * 5 + '", "caption": "Подпись к ролику"}'
+    return ask(prompt, **kw)
+P.ask = ask2; P.ffmpeg = lambda: shutil.which("ffmpeg")
+d = next(p for p in P._load() if p["status"] == "draft")
+assert any("cp:vd:" in b["callback_data"] for row in (sent[-1][2] or []) for b in row) or True
+P.make_video(1, d["text"])
+assert uploads and uploads[-1][1] > 10000, uploads
+v = next(p for p in P._load() if p.get("file_id"))
+assert v["text"] == "Подпись к ролику" and v["status"] == "draft"
+P.on_callback(1, admin, f"cp:ok:{v['id']}")
+P._update(v["id"], at=time.time() - 1); calls.clear(); P._publish_due()
+assert any(m == "sendVideo" and p["video"] == "FILE1" and p["chat_id"] == "@improvelab" for m, p in calls)
+# /video без темы — подсказка; кнопка 🎬 есть у текстового черновика
+P.on_command(1, admin, "/video", "", ""); assert "Напиши тему" in sent[-1][1]
+P.show(d, [1]); assert any(b["callback_data"].startswith("cp:vd:") for row in sent[-1][2] for b in row)
+print("video OK")

@@ -1351,7 +1351,7 @@ pending_compare = storage.Pending("cmp")
 
 CHANNEL = channel_posts.Posts(api=api, send=send, notify_admins=lambda t: notify_admins(t), ask=ai.ask,
                               kv_get=storage.kv_get, kv_set=storage.kv_set, fetch_channel=fetch_channel,
-                              admin_ids=ADMIN_IDS)
+                              admin_ids=ADMIN_IDS, token=TOKEN, ffmpeg=video.ffmpeg_path)
 
 
 def handle_message(msg: dict):
@@ -1375,7 +1375,8 @@ def handle_message(msg: dict):
     if user["id"] in ADMIN_IDS and CHANNEL.on_text(chat_id, user, text):
         return
     cmd = text.split()[0].split("@")[0].lower() if text.startswith("/") else ""
-    if cmd and CHANNEL.on_command(chat_id, user, cmd, (text.split() + [""])[1].lower()):
+    if cmd and CHANNEL.on_command(chat_id, user, cmd, (text.split() + [""])[1].lower(),
+                                    (text.split(maxsplit=1) + [""])[1].strip()):
         return
 
     if cmd == "/start":
@@ -1749,6 +1750,7 @@ def main():
     storage.db()
     threading.Thread(target=daily_summary_loop, daemon=True).start()
     threading.Thread(target=CHANNEL.loop, daemon=True).start()
+    threading.Thread(target=CHANNEL.selftest, daemon=True).start()
     video.warmup()
     threading.Thread(target=ai_media.selftest, args=(video.test_clip,), daemon=True).start()
     threading.Thread(target=ai_media.selftest_research, daemon=True).start()

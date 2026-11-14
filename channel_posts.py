@@ -8,7 +8,9 @@
 - публикация выключена, пока админ не напишет /posting on (сначала — запуск ролика).
 
 Честность: никаких выдуманных отзывов, цифр, клиентов и результатов — только факты о продукте ниже.
-Команды админа: /drafts, /queue, /posting on|off, /channel_check.
+Ролики без лица: кнопка 🎬 Видео под черновиком или /video <тема> — сценарий, ИИ-голос, вертикальное видео
+с субтитрами; ролик приходит админу на ✅ и публикуется в канал как видео с подписью (его же можно скачать для рилс).
+Команды админа: /drafts, /video <тема>, /queue, /posting on|off, /channel_check.
 """
 import json
 import logging
@@ -17,6 +19,8 @@ import re
 import threading
 import time
 import uuid
+
+import faceless
 
 log = logging.getLogger("channel")
 
@@ -62,10 +66,13 @@ RULES = """ПРАВИЛА:
 
 
 class Posts:
-    def __init__(self, api, send, notify_admins, ask, kv_get, kv_set, fetch_channel, admin_ids):
+    def __init__(self, api, send, notify_admins, ask, kv_get, kv_set, fetch_channel, admin_ids,
+                 token: str = "", ffmpeg=lambda: None):
         self.api, self.send, self.notify, self.ask = api, send, notify_admins, ask
         self.kv_get, self.kv_set, self.fetch_channel, self.admin_ids = kv_get, kv_set, fetch_channel, admin_ids
+        self.token, self.ffmpeg = token, ffmpeg
         self.lock = threading.Lock()
+        self.video_busy = threading.Lock()   # один ролик за раз — бесплатный сервер слабый
         self.wait_edit: dict[int, str] = {}   # админ → id черновика, который он правит
 
     # ---------- хранилище ----------
@@ -154,9 +161,75 @@ class Posts:
         kb = [[{"text": "✅ В очередь", "callback_data": f"cp:ok:{p['id']}"},
                {"text": "✏️ Переписать", "callback_data": f"cp:ed:{p['id']}"},
                {"text": "❌ Удалить", "callback_data": f"cp:no:{p['id']}"}]]
+        if p.get("file_id"):
+            kb.append([{"text": "🔁 Другой ролик", "callback_data": f"cp:vr:{p['id']}"}])
+            cap = f"🎬 Ролик для @{CHANNEL} · {self.when(p['at'])}\n\n{p['text']}"
+            for a in (chat_ids or self.admin_ids):
+                self.api("sendVideo", chat_id=a, video=p["file_id"], caption=cap[:1024],
+                         reply_markup={"inline_keyboard": kb})
+            return
+        kb[0].insert(2, {"text": "🎬 Видео", "callback_data": f"cp:vd:{p['id']}"})
+        kb = [kb[0][:2], kb[0][2:]]
         head = f"📝 Черновик для @{CHANNEL} · {self.when(p['at'])}\nРубрика: {p['rubric'][:60]}\n\n"
         for a in (chat_ids or self.admin_ids):
             self.send(a, head + p["text"], kb)
+
+    # ---------- ролики ----------
+    def make_video(self, chat_id, source: str, replace_id: str | None = None):
+        """Сценарий → голос → видео. Видео грузится в чат админа, file_id сохраняется в очереди."""
+        if not self.video_busy.acquire(blocking=False):
+            self.send(chat_id, "Уже делаю другой ролик — подожди пару минут и нажми ещё раз.")
+            return
+        try:
+            ff = self.ffmpeg()
+            if not ff:
+                raise RuntimeError("нет ffmpeg")
+            self.send(chat_id, "🎬 Пишу сценарий, озвучиваю и монтирую… обычно 1–3 минуты.")
+            script = faceless.parse_script(self.ask(faceless.script_prompt(source, FACTS, RULES),
+                                                    max_tokens=1500, tag="video_script"))
+            mp4 = faceless.render(ff, script["title"], faceless.tts(script["voice"]), script["voice"])
+            at = self.next_slots(1)[0]
+            pid = uuid.uuid4().hex[:8]
+            kb = [[{"text": "✅ В очередь", "callback_data": f"cp:ok:{pid}"},
+                   {"text": "✏️ Подпись", "callback_data": f"cp:ed:{pid}"},
+                   {"text": "❌ Удалить", "callback_data": f"cp:no:{pid}"}],
+                  [{"text": "🔁 Другой ролик", "callback_data": f"cp:vr:{pid}"}]]
+            cap = f"🎬 Ролик для @{CHANNEL} · {self.when(at)}\n\n{script['caption']}"
+            msg = faceless.upload_video(self.token, chat_id, mp4, cap, kb)
+            if not msg or not msg.get("video"):
+                raise RuntimeError("Telegram не принял видео")
+            item = {"id": pid, "text": script["caption"], "rubric": "Ролик", "at": at, "status": "draft",
+                    "created": time.time(), "file_id": msg["video"]["file_id"], "source": source[:1500],
+                    "voice": script["voice"]}
+            with self.lock:
+                items = self._load()
+                if replace_id:
+                    for p in items:
+                        if p["id"] == replace_id and p["status"] == "draft":
+                            p["status"] = "deleted"
+                self._save(items + [item])
+            for a in self.admin_ids:
+                if a != chat_id:
+                    self.show(item, [a])
+            log.info("video ok %d KB", len(mp4) // 1024)
+        except Exception as e:
+            log.error("video failed: %s", e)
+            self.send(chat_id, "Не получилось сделать ролик 😕 Попробуй ещё раз через минуту.")
+        finally:
+            self.video_busy.release()
+
+    def selftest(self):
+        """Один раз (до первого успеха): проверить ИИ-голос и монтаж на сервере, результат — в журнал."""
+        if self.kv_get("cp:tts_ok"):
+            return
+        try:
+            ff = self.ffmpeg()
+            mp3 = faceless.tts("Проверка голоса Improve Lab.")
+            mp4 = faceless.render(ff, "Проверка", mp3, "Проверка голоса Improve Lab.")
+            self.kv_set("cp:tts_ok", "1")
+            log.info("video selftest OK: voice %d KB, video %d KB", len(mp3) // 1024, len(mp4) // 1024)
+        except Exception as e:
+            log.warning("video selftest failed: %s", e)
 
     # ---------- кнопки и правки ----------
     def on_callback(self, chat_id, user, data) -> bool:
@@ -176,6 +249,10 @@ class Posts:
         elif action == "no":
             self._update(pid, status="deleted")
             self.send(chat_id, "❌ Удалил.")
+        elif action in ("vd", "vr"):
+            src = p.get("source") or p["text"]
+            threading.Thread(target=self.make_video, args=(chat_id, src, pid if action == "vr" else None),
+                             daemon=True).start()
         elif action == "ed":
             self.wait_edit[user["id"]] = pid
             self.send(chat_id, "Что поправить? Напиши одним сообщением — перепишу.\n"
@@ -194,19 +271,28 @@ class Posts:
         else:
             self.send(chat_id, "Переписываю… ✍️")
             new_text = self.ask(f"{FACTS}\n\n{RULES}\n\nВот пост для канала:\n\n{p['text']}\n\n"
-                                f"Перепиши его с учётом правки автора: {text}\nОтвет — только текст поста.",
+                                f"Перепиши его с учётом правки автора: {text}\n"
+                                + ("Это подпись к видео — не длиннее 900 знаков.\n" if p.get("file_id") else "")
+                                + "Ответ — только текст поста.",
                                 max_tokens=1500, tag="channel_edit").strip()
         self._update(pid, text=new_text, status="draft")
         self.show(dict(p, text=new_text), [chat_id])
         return True
 
     # ---------- команды ----------
-    def on_command(self, chat_id, user, cmd, arg) -> bool:
-        if user["id"] not in self.admin_ids or cmd not in ("/drafts", "/queue", "/posting", "/channel_check"):
+    def on_command(self, chat_id, user, cmd, arg, arg_full: str = "") -> bool:
+        if user["id"] not in self.admin_ids or cmd not in ("/drafts", "/video", "/queue", "/posting", "/channel_check"):
             return False
         if cmd == "/drafts":
             self.send(chat_id, f"Пишу {DRAFTS_PER_WEEK} постов для @{CHANNEL}… это пара минут ⏳")
             threading.Thread(target=self._drafts_job, args=(chat_id,), daemon=True).start()
+        elif cmd == "/video":
+            topic = arg_full or ""
+            if not topic:
+                self.send(chat_id, "Напиши тему: /video почему рилс не набирают просмотры\n"
+                                   "Или нажми 🎬 Видео под любым черновиком поста.")
+            else:
+                threading.Thread(target=self.make_video, args=(chat_id, topic), daemon=True).start()
         elif cmd == "/queue":
             items = [p for p in self._load() if p["status"] in ("draft", "approved")]
             items.sort(key=lambda p: p["at"])
@@ -215,7 +301,8 @@ class Posts:
             else:
                 mark = {"draft": "📝 ждёт ✅", "approved": "✅ в очереди"}
                 self.send(chat_id, f"Публикация: {'включена' if self.posting_on() else 'выключена'}\n\n" + "\n\n".join(
-                    f"{self.when(p['at'])} — {mark[p['status']]}\n{p['text'][:90]}…" for p in items))
+                    f"{self.when(p['at'])} — {'🎬 ' if p.get('file_id') else ''}{mark[p['status']]}\n{p['text'][:90]}…"
+                    for p in items))
         elif cmd == "/posting":
             if arg in ("on", "off"):
                 self.kv_set("cp:posting", arg)
@@ -270,7 +357,11 @@ class Posts:
     def _publish_due(self):
         for p in self._load():
             if p["status"] == "approved" and p["at"] <= time.time():
-                r = self.api("sendMessage", chat_id=f"@{CHANNEL}", text=p["text"], disable_web_page_preview=True)
+                if p.get("file_id"):
+                    r = self.api("sendVideo", chat_id=f"@{CHANNEL}", video=p["file_id"], caption=p["text"][:1024],
+                                 supports_streaming=True)
+                else:
+                    r = self.api("sendMessage", chat_id=f"@{CHANNEL}", text=p["text"], disable_web_page_preview=True)
                 if r:
                     self._update(p["id"], status="posted", posted=time.time())
                     self.notify(f"📣 Опубликовал в @{CHANNEL}:\n{p['text'][:120]}…")
