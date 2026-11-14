@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:540px;height:960px;overflow:hidden;background:#0b0b10;font-family:"Inter","DejaVu Sans",sans-serif;color:#fff}
+  #bg{position:absolute;inset:0;background:radial-gradient(120% 70% at 20% 0%,#2a2410 0%,#0b0b10 55%),#0b0b10}
+  #glow{position:absolute;width:520px;height:520px;border-radius:50%;left:10px;top:260px;
+        background:radial-gradient(circle,rgba(255,214,10,.16),rgba(255,214,10,0) 65%)}
+  #hook{position:absolute;left:34px;right:34px;top:46px;font-weight:800;font-size:38px;line-height:1.08;letter-spacing:-.5px}
+  #hook b{color:#FFD60A}
+  #tag{position:absolute;left:34px;top:24px;font-size:13px;font-weight:700;letter-spacing:2px;color:#FFD60A;opacity:.9}
+  /* phone */
+  #phone{position:absolute;left:60px;top:170px;width:420px;height:690px;border-radius:44px;background:#000;
+         padding:10px;box-shadow:0 30px 80px rgba(0,0,0,.7),0 0 0 2px #2b2b33 inset;transform-origin:50% 40%}
+  #screen{position:relative;width:100%;height:100%;border-radius:36px;overflow:hidden;background:#0e1621}
+  .notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:110px;height:28px;border-radius:20px;background:#000;z-index:9}
+  .status{height:44px;display:flex;justify-content:space-between;align-items:flex-end;padding:0 26px 4px;font-size:13px;font-weight:600}
+  /* chat list */
+  #list{position:absolute;top:44px;left:0;right:0;bottom:0;background:#0e1621}
+  .lh{height:50px;display:flex;align-items:center;padding:0 16px;font-size:19px;font-weight:700;border-bottom:1px solid #0a1018}
+  .row{display:flex;gap:12px;align-items:center;padding:10px 14px;position:relative}
+  .av{width:50px;height:50px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  .rt{flex:1;min-width:0}.rn{font-weight:700;font-size:15px}.rm{color:#7d8b99;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hl{position:absolute;inset:0;background:#2b5278;opacity:0}
+  /* chat */
+  #chat{position:absolute;top:44px;left:0;right:0;bottom:0;background:#0e1621;transform:translateX(100%)}
+  .ch{height:56px;display:flex;align-items:center;gap:10px;padding:0 12px;background:#17212b}
+  .ch .av{width:38px;height:38px;font-size:14px}
+  .msgs{position:absolute;top:56px;left:0;right:0;bottom:50px;padding:10px 10px;display:flex;flex-direction:column;gap:7px;
+        justify-content:flex-end;overflow:hidden;
+        background:linear-gradient(180deg,#0e1621,#101c29)}
+  .m{max-width:86%;padding:9px 12px;border-radius:15px;font-size:14.5px;line-height:1.35;opacity:0;transform:translateY(14px) scale(.98)}
+  .bot{align-self:flex-start;background:#182533;border-bottom-left-radius:5px}
+  .me{align-self:flex-end;background:#2b5278;border-bottom-right-radius:5px}
+  .kb{align-self:stretch;display:flex;flex-direction:column;gap:4px;opacity:0}
+  .kb div{background:rgba(24,37,51,.92);border-radius:9px;text-align:center;padding:8px 6px;font-size:12.5px;font-weight:600;position:relative;overflow:hidden}
+  .kb .press{background:#3a6a99}
+  .vid{width:170px;height:250px;border-radius:13px;background:linear-gradient(160deg,#c4718c,#6b3b5c 60%,#2a1b2a);position:relative;padding:0}
+  .vid .pl{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .vid .du{position:absolute;left:8px;top:8px;background:rgba(0,0,0,.45);border-radius:8px;padding:1px 7px;font-size:11px}
+  .vid .nails{position:absolute;bottom:26px;left:50%;transform:translateX(-50%);font-size:46px}
+  .typing{display:flex;gap:5px;padding:12px 14px}
+  .typing i{width:7px;height:7px;border-radius:50%;background:#7d8b99;display:block}
+  .rep b{color:#FFD60A}
+  .rep .k{display:block;margin-top:5px}
+  .rep .k:first-child{margin-top:0}
+  .note{font-size:10.5px;color:#7d8b99;margin-top:6px}
+  .input{position:absolute;bottom:0;left:0;right:0;height:50px;background:#17212b;display:flex;align-items:center;padding:0 14px;color:#6c7883;font-size:14px;gap:12px}
+  /* finger */
+  #tap{position:absolute;width:46px;height:46px;border-radius:50%;background:rgba(255,255,255,.35);border:2px solid rgba(255,255,255,.8);
+       opacity:0;z-index:20;pointer-events:none;margin:-23px 0 0 -23px}
+  /* subtitles */
+  #sub{position:absolute;left:24px;right:24px;bottom:30px;text-align:center;font-size:25px;font-weight:800;line-height:1.2;
+       text-shadow:0 2px 0 #000,0 0 14px rgba(0,0,0,.9);opacity:0}
+  #sub span{background:#FFD60A;color:#111;padding:0 6px;border-radius:5px;text-shadow:none}
+  /* end card */
+  #end{position:absolute;inset:0;background:rgba(11,11,16,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;opacity:0;text-align:center;padding:40px}
+  #end .t{font-size:40px;font-weight:800;line-height:1.1}
+  #end .t b{color:#FFD60A}
+  #end .btn{background:#FFD60A;color:#111;font-weight:800;font-size:24px;padding:16px 28px;border-radius:16px}
+  #end .s{color:#9a9aa6;font-size:17px}
+</style></head>
+<body>
+<div id="bg"></div><div id="glow"></div>
+<div id="tag">IMPROVE LAB</div>
+<div id="hook">Проверь рилс <b>до&nbsp;публикации</b></div>
+
+<div id="phone"><div id="screen">
+  <div class="notch"></div>
+  <div class="status"><span>19:00</span><span>▮▮▮ ◔</span></div>
+  <div id="list">
+    <div class="lh">Чаты</div>
+    <div class="row"><div class="av" style="background:#e17076">М</div><div class="rt"><div class="rn">Мама</div><div class="rm">Ты поел?</div></div></div>
+    <div class="row" id="rowBot"><div class="hl" id="hl"></div><div class="av" style="background:#FFD60A;color:#111;position:relative">IL</div><div class="rt" style="position:relative"><div class="rn">Improve Lab</div><div class="rm">ИИ-продюсер: что снимать, чтобы росли просмотры</div></div></div>
+    <div class="row"><div class="av" style="background:#7bc862">К</div><div class="rt"><div class="rn">Клиентки 💅</div><div class="rm">Аня: а на субботу есть окошко?</div></div></div>
+    <div class="row"><div class="av" style="background:#6ec9cb">Р</div><div class="rt"><div class="rn">Рабочее</div><div class="rm">фото готовы, скинула в облако</div></div></div>
+    <div class="row"><div class="av" style="background:#ee7aae">Л</div><div class="rt"><div class="rn">Лена</div><div class="rm">видела твой новый дизайн 😍</div></div></div>
+  </div>
+  <div id="chat">
+    <div class="ch"><span style="color:#5ea5e6;font-size:20px">‹</span><div class="av" style="background:#FFD60A;color:#111">IL</div>
+      <div><div class="rn">Improve Lab</div><div style="color:#5ea5e6;font-size:12px" id="st">бот</div></div></div>
+    <div class="msgs" id="msgs">
+      <div class="m bot" id="m1">Привет! Я ИИ-продюсер 🎬<br>Подскажу, что снимать и постить, чтобы росли просмотры.<br><br>С чего начнём? 👇</div>
+      <div class="kb" id="kb">
+        <div>📢 Разобрать мой Telegram-канал</div>
+        <div>🔍 Что залетает в моей нише</div>
+        <div id="kbReel">📲 Проверить рилс до публикации</div>
+        <div>🎞 Разбор Inst / TikTok по роликам</div>
+      </div>
+      <div class="m me vid" id="m2"><div class="du">0:24</div><div class="nails" style="font-size:15px;font-weight:800;bottom:20px;text-align:center;width:150px">френч<br>за 40 минут</div><div class="pl">▶</div></div>
+      <div class="m bot typing" id="m3"><i></i><i></i><i></i></div>
+      <div class="m bot rep" id="m4">
+        <span class="k" id="r1"><b>ОЦЕНКА: 6/10</b> — красиво, но начало слабое</span>
+        <span class="k" id="r2"><b>ХУК:</b> готовые ногти видно только на 3-й секунде. Начни с результата</span>
+        <span class="k" id="r3"><b>ЗВУК:</b> на 4 с музыка глушит голос — убавь её</span>
+        <span class="k" id="r4"><b>ТЕКСТ НА ЭКРАН:</b> «Такой френч ты ещё не видела»</span>
+        <span class="k" id="r5"><b>ИТОГ:</b> переставь начало и выкладывай</span>
+        <div class="note">пример ответа</div>
+      </div>
+    </div>
+    <div class="input">📎<span>Сообщение</span></div>
+  </div>
+</div></div>
+<div id="tap"></div>
+<div id="sub"></div>
+<div id="end"><div class="t">Залетит или нет —<br><b>узнай до публикации</b></div><div class="btn">@Improvelab_bot</div><div class="s">первая проверка — бесплатно</div></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ease = (x) => { x = clamp(x); return 1 - Math.pow(1 - x, 3); };
+const prog = (t, a, b) => ease((t - a) / (b - a));      // 0→1 between a and b
+const show = (el, p, dy = 14) => { el.style.opacity = p; el.style.transform = `translateY(${(1 - p) * dy}px) scale(${0.98 + 0.02 * p})`; };
+// subtitles (phrases + start time); filled from Python for the real voice timing
+window.SUBS = window.SUBS || [];
+function sub(t) {
+  let cur = null;
+  for (const s of window.SUBS) if (t >= s[0] && t < s[1]) cur = s;
+  const el = $('sub');
+  if (!cur) { el.style.opacity = 0; return; }
+  el.innerHTML = cur[2].replace(/\*(.+?)\*/g, '<span>$1</span>');
+  el.style.opacity = prog(t, cur[0], cur[0] + 0.12);
+}
+function tap(t, at, x, y) {               // finger tap at screen coords
+  const p = (t - at) / 0.5;
+  if (p < -0.6 || p > 1) return false;
+  const el = $('tap');
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  el.style.opacity = p < 0 ? 1 + p / 0.6 : 1 - p;
+  el.style.transform = `scale(${p < 0 ? 1 : 1 - 0.25 * Math.sin(p * Math.PI)})`;
+  return true;
+}
+window.render = function (t) {
+  const T = window.TIMES;
+  // hook pops in
+  show($('hook'), prog(t, 0, 0.5), 20);
+  // phone gentle zoom over the whole video
+  // camera: slow push, then zoom into the answer so it can be read on a phone
+  const zin = prog(t, T.answer + 0.2, T.answer + 1.0), zout = prog(t, T.endCard - 0.6, T.endCard);
+  const zz = zin * (1 - zout);
+  const z = 1 + 0.04 * clamp(t / T.end) + 0.32 * zz;
+  $('phone').style.transform = `translateY(${-150 * zz}px) scale(${z})`;
+  // tap the bot in the list
+  $('tap').style.opacity = 0;
+  tap(t, T.openTap, 270, 330) ;
+  $('hl').style.opacity = t > T.openTap - 0.05 && t < T.open + 0.3 ? 0.7 : 0;
+  // chat slides in
+  const o = prog(t, T.open, T.open + 0.45);
+  $('chat').style.transform = `translateX(${(1 - o) * 100}%)`;
+  $('list').style.transform = `translateX(${-o * 30}%)`;
+  show($('m1'), prog(t, T.open + 0.4, T.open + 0.8));
+  show($('kb'), prog(t, T.open + 0.8, T.open + 1.2));
+  // tap "check reel"
+  if (t < T.reelTap + 0.6) tap(t, T.reelTap, 280, 600);
+  $('kbReel').classList.toggle('press', t > T.reelTap && t < T.reelTap + 0.5);
+  // hide welcome + menu, user sends video
+  const gone = prog(t, T.send - 0.3, T.send);
+  if (gone > 0) { $('m1').style.display = gone >= 1 ? 'none' : ''; $('kb').style.display = gone >= 1 ? 'none' : '';
+                  $('m1').style.opacity = 1 - gone; $('kb').style.opacity = 1 - gone; }
+  else { $('m1').style.display = ''; $('kb').style.display = ''; }
+  show($('m2'), prog(t, T.send, T.send + 0.4), 40);
+  // typing…
+  const ty = t > T.think && t < T.answer;
+  $('m3').style.display = t < T.answer ? '' : 'none';
+  show($('m3'), ty ? prog(t, T.think, T.think + 0.3) : 0);
+  [...$('m3').children].forEach((d, i) => d.style.opacity = 0.35 + 0.65 * Math.abs(Math.sin((t * 4 + i * 0.6))));
+  $('st').textContent = ty ? 'смотрит и слушает ролик…' : 'бот';
+  // answer, line by line
+  $('m4').style.display = t >= T.answer ? '' : 'none';
+  show($('m4'), prog(t, T.answer, T.answer + 0.35));
+  ['r1', 'r2', 'r3', 'r4', 'r5'].forEach((id, i) => { const p = prog(t, T.lines[i], T.lines[i] + 0.35); $(id).style.opacity = p; });
+  if (t >= T.answer) $('m2').style.display = t > T.lines[2] ? 'none' : '';
+  // end card
+  const e = prog(t, T.endCard, T.endCard + 0.5);
+  $('end').style.opacity = e;
+  $('end').style.transform = `scale(${1.04 - 0.04 * e})`;
+  sub(t);
+};
+window.TIMES = window.TIMES || {openTap: 2.0, open: 2.4, reelTap: 5.2, send: 6.4, think: 7.0, answer: 9.4,
+  lines: [9.8, 11.6, 14.0, 16.2, 18.4], endCard: 20.8, end: 24};
+window.render(0);
+</script>
+</body></html>
