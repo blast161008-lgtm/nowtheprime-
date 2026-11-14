@@ -71,3 +71,12 @@ assert any(m == "sendVideo" and p["video"] == "FILE1" and p["chat_id"] == "@impr
 P.on_command(1, admin, "/video", "", ""); assert "Напиши тему" in sent[-1][1]
 P.show(d, [1]); assert any(b["callback_data"].startswith("cp:vd:") for row in sent[-1][2] for b in row)
 print("video OK")
+
+# ---------- сломанный / обрезанный JSON ----------
+cut = '```json\n["Первый пост ' + "слово " * 20 + '", "Второй пост \\"в кавычках\\" ' + "слово " * 20 + '", "Третий обрез'
+got = cp._parse_list(cut); assert len(got) == 2 and '"в кавычках"' in got[1], got
+P._save(P._load() + [{"id": "bad1", "text": cut, "rubric": "x", "at": time.time() + 9e5, "status": "draft"}])
+P.repair()
+assert P._get("bad1")["status"] == "deleted"
+assert sum(1 for p in P._load() if p["text"].startswith(("Первый пост", "Второй пост"))) == 2
+print("repair OK")

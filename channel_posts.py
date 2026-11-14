@@ -59,7 +59,7 @@ RULES = """ПРАВИЛА:
 - Пиши по-русски, живо и просто, как человек, а не как ИИ. Без markdown (никаких **, #, таблиц). Эмодзи — 0–3 на пост.
 - Длина 400–1200 знаков. Первая строка — цепляет.
 - НЕ выдумывай отзывы, клиентов, цифры роста, кейсы «у Маши выросли охваты на 300%». Если нужен пример —
-  прямо напиши «например» и сделай его иллюстрацией, а не фактом.
+  один раз коротко скажи «например» и дальше пиши живо; не оправдывайся, что пример выдуманный, по несколько раз.
 - Не обещай охваты и продажи. Не используй штампы: «погрузимся», «магия», «секрет успеха», «друзья», «не забудьте подписаться».
 - Призыв к действию — один и простой (попробовать бесплатно в @Improvelab_bot, ответить в комментариях).
 - Не повторяй темы прошлых постов канала."""
@@ -145,7 +145,7 @@ class Posts:
                   f"Напиши {n} готовых постов, по одному на каждую рубрику:\n"
                   + "\n".join(f"{i + 1}. {r}" for i, r in enumerate(rubrics))
                   + "\n\nОтвет — только JSON-массив строк (тексты постов), без пояснений.")
-        raw = self.ask(prompt, max_tokens=4000, heavy=True, tag="channel_drafts")
+        raw = self.ask(prompt, max_tokens=9000, heavy=True, tag="channel_drafts")
         texts = _parse_list(raw)[:n]
         slots = self.next_slots(len(texts))
         with self.lock:
@@ -344,7 +344,31 @@ class Posts:
         return len(late)
 
     # ---------- публикация и еженедельные черновики ----------
+    def repair(self):
+        """Черновики, куда по ошибке попал весь JSON-список, — разбить на отдельные посты и прислать заново."""
+        with self.lock:
+            items = self._load()
+            broken = [p for p in items if p["status"] == "draft" and p["text"].lstrip("`json \n").startswith('["')]
+            for p in broken:
+                p["status"] = "deleted"
+            self._save(items)
+        for p in broken:
+            texts = _parse_list(p["text"])
+            slots = self.next_slots(len(texts))
+            new = [{"id": uuid.uuid4().hex[:8], "text": t, "rubric": "—", "at": at, "status": "draft",
+                    "created": time.time()} for t, at in zip(texts, slots)]
+            with self.lock:
+                self._save(self._load() + new)
+            if new:
+                self.notify(f"🛠 Починил черновики: {len(new)} постов вместо одного сломанного. Присылаю по одному.")
+            for x in new:
+                self.show(x)
+
     def loop(self):
+        try:
+            self.repair()
+        except Exception as e:
+            log.warning("repair: %s", e)
         while True:
             try:
                 if self.posting_on():
@@ -387,4 +411,15 @@ def _parse_list(raw: str) -> list[str]:
             return [str(x) for x in data if str(x).strip()]
         except Exception:
             pass
+    if raw.lstrip("`json \n").startswith("["):
+        # JSON сломан или обрезан по лимиту — берём только целые строки-посты, обрезанный хвост отбрасываем
+        texts = []
+        for lit in re.findall(r'"((?:[^"\\]|\\.)*)"', raw, re.S):
+            try:
+                t = json.loads(f'"{lit}"')
+            except Exception:
+                continue
+            if len(t.strip()) > 80:
+                texts.append(t.strip())
+        return texts
     return [part.strip() for part in re.split(r"\n\s*(?:---+|\d+[.)])\s*\n", raw) if len(part.strip()) > 80]
