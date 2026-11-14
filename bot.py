@@ -25,6 +25,7 @@ import storage
 import video
 from analyzer import analyze, compact_for_ai, samples_for_ai, stats_text
 from tg_parser import ChannelError, fetch_channel, normalize_channel
+import channel_posts
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("bot")
@@ -1348,6 +1349,11 @@ def extract_channels(text: str) -> list[str]:
 pending_compare = storage.Pending("cmp")
 
 
+CHANNEL = channel_posts.Posts(api=api, send=send, notify_admins=lambda t: notify_admins(t), ask=ai.ask,
+                              kv_get=storage.kv_get, kv_set=storage.kv_set, fetch_channel=fetch_channel,
+                              admin_ids=ADMIN_IDS)
+
+
 def handle_message(msg: dict):
     chat_id = msg["chat"]["id"]
     user = msg.get("from") or {"id": chat_id}
@@ -1366,7 +1372,11 @@ def handle_message(msg: dict):
     if not text:
         send(chat_id, "Пришли @канал, ссылку t.me/..., рилс (видео) или скриншоты статистики Inst / TikTok.")
         return
+    if user["id"] in ADMIN_IDS and CHANNEL.on_text(chat_id, user, text):
+        return
     cmd = text.split()[0].split("@")[0].lower() if text.startswith("/") else ""
+    if cmd and CHANNEL.on_command(chat_id, user, cmd, (text.split() + [""])[1].lower()):
+        return
 
     if cmd == "/start":
         payload = text.split(maxsplit=1)[1] if len(text.split()) > 1 else ""
@@ -1546,6 +1556,8 @@ def handle_callback(cb: dict):
     data = cb.get("data", "")
     chat_id = cb["message"]["chat"]["id"]
     user = cb["from"]
+    if CHANNEL.on_callback(chat_id, user, data):
+        return
     if data.startswith("idea:"):
         rest = data[5:]
         name, _, focus = rest.partition("|")
@@ -1736,6 +1748,7 @@ def main():
     set_profile()
     storage.db()
     threading.Thread(target=daily_summary_loop, daemon=True).start()
+    threading.Thread(target=CHANNEL.loop, daemon=True).start()
     video.warmup()
     threading.Thread(target=ai_media.selftest, args=(video.test_clip,), daemon=True).start()
     threading.Thread(target=ai_media.selftest_research, daemon=True).start()
