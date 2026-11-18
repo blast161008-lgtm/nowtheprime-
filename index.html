@@ -358,6 +358,7 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
           </div>
 
           <button class="btn go" type="button" id="buyBtn" disabled>Выбери размер</button>
+          <p class="note" id="soonNote" hidden>Продажи ещё не открыты. Хочешь получить ссылку первым? <a id="soonLink" href="#" target="_blank" rel="noopener" style="color:var(--fg);text-decoration:underline">Напиши «+» в директ</a></p>
           <p class="note">Оплата по QR-коду или переводом по номеру телефона. После оплаты отправь заказ и чек в Telegram — подтвердим и договоримся о доставке.</p>
         </div>
       </div>
@@ -2795,6 +2796,8 @@ var qrcode = function() {
 const CONFIG = {
   product: "The path is the prize",
   price: 3490,                 // цена, ₽
+  launchAt: "2026-11-23T19:00:00+03:00",  // старт продаж (МСК); до этого кнопка «Купить» не работает
+  dateRevealAt: "2026-11-20T00:00:00+03:00", // до этого момента на кнопке «Скоро в продаже», без даты
   sbpLink: "",                 // ссылка на оплату по СБП из банка (если появится — заменит QR)
   phone: "+7 913 581-99-69",                 // номер для перевода по СБП, напр. "+7 900 000-00-00" (пусто — блок скрыт)
   phoneBank: "Альфа-Банк",
@@ -2871,8 +2874,22 @@ $("#chartToggle").addEventListener("click", e => { chart.hidden = !chart.hidden;
 function setQty(n){ const cap = Math.min(CONFIG.maxQty, size ? left(size) : CONFIG.maxQty); qty = Math.max(1, Math.min(cap, n)); $("#qty").textContent = qty; updateBuy(); }
 $("#qMinus").onclick = () => setQty(qty - 1);
 $("#qPlus").onclick = () => setQty(qty + 1);
+const LAUNCH = Date.parse(CONFIG.launchAt);
+const isLive = () => !(LAUNCH > Date.now());
+function countdown(){
+  const ms = LAUNCH - Date.now(), m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mi = m % 60;
+  if (d > 0) return `через ${d} д ${h} ч`;
+  if (h > 0) return `через ${h} ч ${mi} мин`;
+  return `через ${Math.max(1, mi)} мин`;
+}
 function updateBuy(){
   const b = $("#buyBtn");
+  $("#soonNote").hidden = isLive() || totalLeft <= 0;
+  if (!isLive() && totalLeft > 0){
+    b.disabled = true;
+    b.textContent = Date.now() >= Date.parse(CONFIG.dateRevealAt) ? `Старт продаж 23.11 в 19:00 · ${countdown()}` : "Скоро в продаже";
+    return;
+  }
   if (!size){ b.disabled = true; b.textContent = totalLeft > 0 ? "Выбери размер" : "Sold out"; return; }
   b.disabled = false; b.textContent = `Купить · ${size} · ${rub(CONFIG.price * qty)}`;
 }
@@ -2882,7 +2899,7 @@ const dlg = $("#checkout"), form = $("#coForm");
 let orderId = "";
 function step(n){ form.classList.toggle("ready", n === 2); $("#coStep").textContent = n === 2 ? "Шаг 2 из 2 · Оплата" : "Шаг 1 из 2 · Данные"; }
 function openCheckout(){
-  if (!size || left(size) < qty) return;
+  if (!isLive() || !size || left(size) < qty) return;
   orderId = "NTP-002-" + String(Math.floor(1000 + Math.random()*9000));
   $("#sumLine").textContent = `Размер ${size} · ${qty} шт.`;
   $("#sumTotal").textContent = $("#payTotal").textContent = rub(CONFIG.price * qty);
@@ -2894,6 +2911,9 @@ function openCheckout(){
 }
 function closeCheckout(){ if (dlg.close) dlg.close(); else dlg.removeAttribute("open"); document.body.classList.remove("locked"); }
 $("#buyBtn").addEventListener("click", openCheckout);
+$("#soonLink").href = "https://ig.me/m/" + CONFIG.instagram;
+updateBuy();
+if (!isLive()) { const t = setInterval(() => { updateBuy(); if (isLive()) clearInterval(t); }, 20000); }
 $("#coClose").addEventListener("click", closeCheckout);
 dlg.addEventListener("close", () => document.body.classList.remove("locked"));
 dlg.addEventListener("click", e => { if (e.target === dlg) closeCheckout(); });
