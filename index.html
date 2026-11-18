@@ -2797,6 +2797,8 @@ const CONFIG = {
   product: "The path is the prize",
   price: 3490,                 // цена, ₽
   launchAt: "2026-11-23T19:00:00+03:00",  // старт продаж (МСК); до этого кнопка «Купить» не работает
+  earlyAt: "2026-11-23T18:00:00+03:00",   // ранний доступ для листа ожидания (ссылка с ?early=path)
+  earlyCode: "path",
   dateRevealAt: "2026-11-20T00:00:00+03:00", // до этого момента на кнопке «Скоро в продаже», без даты
   sbpLink: "",                 // ссылка на оплату по СБП из банка (если появится — заменит QR)
   phone: "+7 913 581-99-69",                 // номер для перевода по СБП, напр. "+7 900 000-00-00" (пусто — блок скрыт)
@@ -2874,7 +2876,8 @@ $("#chartToggle").addEventListener("click", e => { chart.hidden = !chart.hidden;
 function setQty(n){ const cap = Math.min(CONFIG.maxQty, size ? left(size) : CONFIG.maxQty); qty = Math.max(1, Math.min(cap, n)); $("#qty").textContent = qty; updateBuy(); }
 $("#qMinus").onclick = () => setQty(qty - 1);
 $("#qPlus").onclick = () => setQty(qty + 1);
-const LAUNCH = Date.parse(CONFIG.launchAt);
+const EARLY = new URLSearchParams(location.search).get("early") === CONFIG.earlyCode;
+const LAUNCH = Date.parse(EARLY ? CONFIG.earlyAt : CONFIG.launchAt);
 const isLive = () => !(LAUNCH > Date.now());
 function countdown(){
   const ms = LAUNCH - Date.now(), m = Math.floor(ms / 60000), d = Math.floor(m / 1440), h = Math.floor(m % 1440 / 60), mi = m % 60;
@@ -2887,7 +2890,8 @@ function updateBuy(){
   $("#soonNote").hidden = isLive() || totalLeft <= 0;
   if (!isLive() && totalLeft > 0){
     b.disabled = true;
-    b.textContent = Date.now() >= Date.parse(CONFIG.dateRevealAt) ? `Старт продаж 23.11 в 19:00 · ${countdown()}` : "Скоро в продаже";
+    b.textContent = EARLY ? `Ранний доступ 23.11 в 18:00 · ${countdown()}`
+      : Date.now() >= Date.parse(CONFIG.dateRevealAt) ? `Старт продаж 23.11 в 19:00 · ${countdown()}` : "Скоро в продаже";
     return;
   }
   if (!size){ b.disabled = true; b.textContent = totalLeft > 0 ? "Выбери размер" : "Sold out"; return; }
