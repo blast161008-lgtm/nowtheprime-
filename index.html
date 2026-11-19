@@ -116,6 +116,8 @@ p{margin:0}
 .thumbs button[aria-pressed="true"]{opacity:1;border-color:var(--fg)}
 .thumbs button:hover{opacity:1}
 .thumbs img{width:100%;height:100%;object-fit:cover}
+.thumbs.thumbs-looks{grid-template-columns:repeat(4,1fr);gap:8px}
+.thumbs.thumbs-looks button{aspect-ratio:4/5}
 
 .buy{position:sticky;top:110px;display:grid;gap:34px}
 .buy .title{display:grid;gap:16px}
@@ -2845,11 +2847,47 @@ $("#igLink").href = "https://instagram.com/" + CONFIG.instagram;
 $("#tgHandle").textContent = "@" + CONFIG.telegram;
 
 /* gallery */
-document.querySelectorAll(".thumbs button").forEach(b => b.addEventListener("click", () => {
-  document.querySelectorAll(".thumbs button").forEach(x => x.setAttribute("aria-pressed", x === b));
-  const img = $("#mainImg"); img.style.opacity = 0;
-  setTimeout(() => { img.src = b.dataset.src; img.alt = b.dataset.alt; img.style.opacity = 1; }, 200);
-}));
+function bindThumbs(){
+  document.querySelectorAll(".thumbs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".thumbs button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    const img = $("#mainImg"); img.style.opacity = 0;
+    setTimeout(() => { img.src = b.dataset.src; img.alt = b.dataset.alt; img.style.objectPosition = b.dataset.pos || ""; img.style.opacity = 1; }, 200);
+  }));
+}
+bindThumbs();
+
+/* реальные фото Drop 002 — заменяют заглушки SOON в момент анонса (dateRevealAt) */
+const LOOKS = [
+  { src: "img/look-1.jpg", s: "img/look-1-s.jpg", pos: "50% 42%", alt: "Футболка The path is the prize на модели в полный рост, boxy-крой" },
+  { src: "img/look-2.jpg", s: "img/look-2-s.jpg", pos: "50% 40%", alt: "Принт NOW THE PRIME крупно на модели, чёрно-белое фото" },
+  { src: "img/look-3.jpg", s: "img/look-3-s.jpg", pos: "50% 45%", alt: "Модель в очках в кресле в футболке NOW THE PRIME" },
+  { src: "img/look-4.jpg", s: "img/look-4-s.jpg", pos: "50% 40%", alt: "Чёрно-белое фото: модель в футболке NOW THE PRIME, волосы в движении" },
+  { src: "img/look-5.jpg", s: "img/look-5-s.jpg", pos: "50% 28%", alt: "Футболка NOW THE PRIME на подростке, стоит на кресле" },
+  { src: "img/look-6.jpg", s: "img/look-6-s.jpg", pos: "50% 38%", alt: "Футболка NOW THE PRIME на ребёнке, чёрно-белое фото" },
+  { src: "img/prod-front.jpg", s: "img/prod-front.jpg", pos: "", alt: "Чёрная футболка The path is the prize, вид спереди без модели" },
+  { src: "img/prod-detail.jpg", s: "img/prod-detail.jpg", pos: "", alt: "Принт крупно: NOW THE PRIME, монограмма NP, the path is the prize" }
+];
+const HERO_LOOK = 1;
+let looksShown = false;
+function showLooks(){
+  if (looksShown || Date.now() < Date.parse(CONFIG.dateRevealAt)) return;
+  looksShown = true;
+  const hero = document.querySelector(".hero figure img"), h = LOOKS[HERO_LOOK];
+  if (hero){ hero.src = h.src; hero.alt = h.alt; hero.style.objectPosition = h.pos; }
+  const main = $("#mainImg"), f = LOOKS[0];
+  main.src = f.src; main.alt = f.alt; main.style.objectPosition = f.pos;
+  const th = document.querySelector(".thumbs");
+  th.classList.add("thumbs-looks");
+  th.innerHTML = LOOKS.map((l, i) => `<button type="button" aria-pressed="${i === 0}" data-src="${l.src}" data-pos="${l.pos}" data-alt="${l.alt}"><img src="${l.s}" alt="" loading="lazy" style="object-position:${l.pos}"></button>`).join("");
+  bindThumbs();
+  const sum = document.querySelector(".summary img"); if (sum) sum.src = "img/prod-front.jpg";
+}
+showLooks();
+if (!looksShown){
+  const wait = Date.parse(CONFIG.dateRevealAt) - Date.now();
+  if (wait < 2147000000) setTimeout(showLooks, wait + 500);
+  document.addEventListener("visibilitychange", showLooks);
+}
 
 /* sizes */
 const grid = $("#sizeGrid"), chart = $("#chart");
