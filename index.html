@@ -116,7 +116,7 @@ p{margin:0}
 .thumbs button[aria-pressed="true"]{opacity:1;border-color:var(--fg)}
 .thumbs button:hover{opacity:1}
 .thumbs img{width:100%;height:100%;object-fit:cover}
-.thumbs.thumbs-looks{grid-template-columns:repeat(4,1fr);gap:8px}
+.thumbs.thumbs-looks{grid-template-columns:repeat(3,1fr);gap:8px}
 .thumbs.thumbs-looks button{aspect-ratio:4/5}
 
 .buy{position:sticky;top:110px;display:grid;gap:34px}
@@ -2863,9 +2863,7 @@ const LOOKS = [
   { src: "img/look-3.jpg", s: "img/look-3-s.jpg", pos: "50% 45%", alt: "Модель в очках в кресле в футболке NOW THE PRIME" },
   { src: "img/look-4.jpg", s: "img/look-4-s.jpg", pos: "50% 40%", alt: "Чёрно-белое фото: модель в футболке NOW THE PRIME, волосы в движении" },
   { src: "img/look-5.jpg", s: "img/look-5-s.jpg", pos: "50% 28%", alt: "Футболка NOW THE PRIME на подростке, стоит на кресле" },
-  { src: "img/look-6.jpg", s: "img/look-6-s.jpg", pos: "50% 38%", alt: "Футболка NOW THE PRIME на ребёнке, чёрно-белое фото" },
-  { src: "img/prod-front.jpg", s: "img/prod-front.jpg", pos: "", alt: "Чёрная футболка The path is the prize, вид спереди без модели" },
-  { src: "img/prod-detail.jpg", s: "img/prod-detail.jpg", pos: "", alt: "Принт крупно: NOW THE PRIME, монограмма NP, the path is the prize" }
+  { src: "img/look-6.jpg", s: "img/look-6-s.jpg", pos: "50% 38%", alt: "Футболка NOW THE PRIME на ребёнке, чёрно-белое фото" }
 ];
 const HERO_LOOK = 1;
 let looksShown = false;
@@ -2880,7 +2878,7 @@ function showLooks(){
   th.classList.add("thumbs-looks");
   th.innerHTML = LOOKS.map((l, i) => `<button type="button" aria-pressed="${i === 0}" data-src="${l.src}" data-pos="${l.pos}" data-alt="${l.alt}"><img src="${l.s}" alt="" loading="lazy" style="object-position:${l.pos}"></button>`).join("");
   bindThumbs();
-  const sum = document.querySelector(".summary img"); if (sum) sum.src = "img/prod-front.jpg";
+  const sum = document.querySelector(".summary img"); if (sum) sum.src = "img/look-1-s.jpg";
 }
 showLooks();
 if (!looksShown){
