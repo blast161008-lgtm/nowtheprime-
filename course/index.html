@@ -7,7 +7,7 @@
 <meta property="og:title" content="Онлайн-курс по LITEFEET от NIK TIK PIK">
 <meta property="og:description" content="11 уроков, 50+ вариаций, доступ 12 месяцев. Старт 10 декабря.">
 <meta property="og:image" content="poster.jpg">
-<meta name="theme-color" content="#151515">
+<meta name="theme-color" content="#050505">
 <title>NIK TIK PIK Litefeet</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -46,6 +46,18 @@ p{margin:0}
 a:focus-visible,.btn:focus-visible,button:focus-visible,summary:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .br{font:500 12px/1.4 var(--mono);color:var(--red);white-space:nowrap}
 section{padding-block:72px}
+
+
+/* intro: flying cap */
+.intro{position:fixed;inset:0;z-index:100;background:#050505;display:grid;place-items:center;overflow:hidden;cursor:pointer}
+.intro::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 48%,rgba(215,25,32,.10),transparent 70%);pointer-events:none}
+.intro .stage{position:relative;width:min(78vw,440px);aspect-ratio:720/520;display:grid;place-items:center}
+.intro .cap{position:absolute;inset:0;margin:auto;width:100%;height:auto;max-height:100%;object-fit:contain;will-change:transform,filter,opacity;opacity:0}
+.intro .shadow{position:absolute;left:50%;bottom:-18%;width:60%;height:10%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.10),transparent);filter:blur(6px)}
+.intro .name{position:absolute;left:0;right:0;bottom:calc(14% + env(safe-area-inset-bottom,0px));text-align:center;display:grid;gap:8px;opacity:0;padding-inline:16px}
+.intro .name b{font:500 clamp(26px,7vw,40px)/1 var(--display);letter-spacing:-.04em;color:var(--red);text-transform:uppercase}
+.intro .name span{font:500 11px/1 var(--body);letter-spacing:.22em;text-transform:uppercase;color:#9a988f}
+.intro .skip{position:absolute;right:max(16px,env(safe-area-inset-right,0px));top:calc(16px + env(safe-area-inset-top,0px));font:500 11px/1 var(--body);letter-spacing:.16em;text-transform:uppercase;color:#77756e;background:none;border:0;cursor:pointer}
 
 /* floating menu */
 .menu-btn{position:fixed;z-index:30;top:calc(14px + env(safe-area-inset-top,0px));right:max(14px,env(safe-area-inset-right,0px));width:48px;height:48px;border-radius:50%;background:var(--red);border:0;display:grid;place-items:center;cursor:pointer}
@@ -167,6 +179,17 @@ section{padding-block:72px}
 </style>
 </head>
 <body>
+<div class="intro" id="intro" aria-hidden="true">
+  <button class="skip" type="button" id="introSkip">Пропустить</button>
+  <div class="stage">
+    <img class="cap" data-v="front" src="cap-front.webp" alt="">
+    <img class="cap" data-v="side" src="cap-side.webp" alt="">
+    <img class="cap" data-v="back" src="cap-back.webp" alt="">
+    <div class="shadow"></div>
+  </div>
+  <div class="name"><b>NIK TIK PIK</b><span>Litefeet · онлайн-курс</span></div>
+</div>
+
 <button class="menu-btn" id="menuBtn" type="button" aria-label="Открыть меню" aria-expanded="false"><span></span></button>
 <div class="menu" id="menu" hidden>
   <button class="close" id="menuClose" type="button" aria-label="Закрыть меню">×</button>
@@ -380,6 +403,67 @@ section{padding-block:72px}
     s.setAttribute('aria-pressed', String(!v.muted));
   });
   v.play && v.play().catch(() => {});
+})();
+</script>
+
+<script>
+(() => {
+  const intro = document.getElementById('intro');
+  if (!intro) return;
+  let seen = false;
+  try { seen = sessionStorage.getItem('ntpIntro') === '1'; } catch (e) {}
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const done = () => { intro.remove(); document.documentElement.style.overflow = ''; try { sessionStorage.setItem('ntpIntro', '1'); } catch (e) {} };
+  if (seen || reduce) { done(); return; }
+  document.documentElement.style.overflow = 'hidden';
+  const imgs = {}; intro.querySelectorAll('.cap').forEach(i => imgs[i.dataset.v] = i);
+  const name = intro.querySelector('.name'), shadow = intro.querySelector('.shadow');
+  const ease = t => t < .5 ? 4*t*t*t : 1 - Math.pow(-2*t + 2, 3) / 2;
+  const outC = t => 1 - Math.pow(1 - t, 3);
+  const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  let start = null, stopped = false;
+  const T = { fly: 700, spinEnd: 2300, zoom: 2750, end: 3450 };
+  function frame(now) {
+    if (stopped) return;
+    if (start === null) start = now;
+    const t = now - start;
+    // spin angle (deg): 2 turns, slowing down to face front
+    const spinP = outC(cl(t / T.spinEnd));
+    const ang = 720 * spinP;
+    const a = ((ang % 360) + 360) % 360;
+    let view, sx;
+    if (a < 45 || a >= 315) { view = 'front'; sx = Math.cos(2 * ((a + 45) % 360 - 45) * Math.PI / 180); }
+    else if (a < 135) { view = 'side'; sx = Math.cos(2 * (a - 90) * Math.PI / 180); }
+    else if (a < 225) { view = 'back'; sx = Math.cos(2 * (a - 180) * Math.PI / 180); }
+    else { view = 'side'; sx = -Math.cos(2 * (a - 270) * Math.PI / 180); }
+    sx = Math.sign(sx || 1) * Math.max(Math.abs(sx), .04);
+    // fly-in path, bob, zoom out to camera
+    const fp = outC(cl(t / T.fly));
+    const x = (1 - fp) * -55, y = (1 - fp) * 38 + Math.sin(t / 380) * 2.2 * fp;
+    const zp = ease(cl((t - T.zoom) / (T.end - T.zoom)));
+    const sc = (0.3 + 0.7 * fp) * (1 + zp * 6);
+    const tilt = (1 - fp) * -25 + Math.sin(t / 520) * 4;
+    const speed = Math.abs(Math.sin(2 * a * Math.PI / 180));
+    const blur = (1 - fp) * 6 + (t < T.spinEnd ? speed * 1.6 * (1 - spinP) : 0) + zp * 14;
+    for (const k in imgs) {
+      const el = imgs[k];
+      if (k !== view) { el.style.opacity = 0; continue; }
+      el.style.opacity = (1 - zp) * Math.min(1, t / 120);
+      el.style.transform = `translate(${x}vw, ${y}vh) rotate(${tilt}deg) scale(${sc * sx}, ${sc})`;
+      el.style.filter = `blur(${blur.toFixed(2)}px)`;
+    }
+    shadow.style.opacity = fp * (1 - zp);
+    shadow.style.transform = `translateX(-50%) scaleX(${0.8 + Math.sin(t / 380) * .1})`;
+    name.style.opacity = cl((t - 900) / 400) * (1 - cl((t - T.zoom + 150) / 300));
+    intro.style.background = `rgba(5,5,5,${1 - ease(cl((t - T.zoom - 150) / (T.end - T.zoom)))})`;
+    if (t >= T.end) { stopped = true; done(); return; }
+    requestAnimationFrame(frame);
+  }
+  const go = () => requestAnimationFrame(frame);
+  const all = Object.values(imgs).map(i => i.decode ? i.decode().catch(() => {}) : Promise.resolve());
+  Promise.race([Promise.all(all), new Promise(r => setTimeout(r, 1500))]).then(go);
+  const skip = () => { stopped = true; intro.style.transition = 'opacity .35s'; intro.style.opacity = 0; setTimeout(done, 360); };
+  intro.addEventListener('click', skip);
 })();
 </script>
 </body>
