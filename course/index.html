@@ -410,11 +410,9 @@ section{padding-block:72px}
 (() => {
   const intro = document.getElementById('intro');
   if (!intro) return;
-  let seen = false;
-  try { seen = sessionStorage.getItem('ntpIntro') === '1'; } catch (e) {}
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const done = () => { intro.remove(); document.documentElement.style.overflow = ''; try { sessionStorage.setItem('ntpIntro', '1'); } catch (e) {} };
-  if (seen || reduce) { done(); return; }
+  const done = () => { intro.remove(); document.documentElement.style.overflow = ''; };
+  if (reduce) { done(); return; }
   document.documentElement.style.overflow = 'hidden';
   const imgs = {}; intro.querySelectorAll('.cap').forEach(i => imgs[i.dataset.v] = i);
   const name = intro.querySelector('.name'), shadow = intro.querySelector('.shadow');
