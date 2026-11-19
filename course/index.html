@@ -51,8 +51,10 @@ section{padding-block:72px}
 /* intro: flying cap */
 .intro{position:fixed;inset:0;z-index:100;background:#050505;display:grid;place-items:center;overflow:hidden;cursor:pointer}
 .intro::after{content:"";position:absolute;inset:0;background:radial-gradient(60% 45% at 50% 48%,rgba(215,25,32,.10),transparent 70%);pointer-events:none}
-.intro .stage{position:relative;width:min(78vw,440px);aspect-ratio:720/520;display:grid;place-items:center}
-.intro .cap{position:absolute;inset:0;margin:auto;width:100%;height:auto;max-height:100%;object-fit:contain;will-change:transform,filter,opacity;opacity:0}
+.intro .stage{position:relative;width:min(78vw,440px);aspect-ratio:720/520;display:grid;place-items:center;perspective:900px;transform-style:preserve-3d}
+.intro .grain{position:absolute;inset:-50%;opacity:.07;pointer-events:none;background-size:180px 180px;mix-blend-mode:screen;animation:grain .5s steps(4) infinite}
+@keyframes grain{0%{transform:translate(0,0)}25%{transform:translate(-8%,4%)}50%{transform:translate(5%,-6%)}75%{transform:translate(-4%,-3%)}100%{transform:translate(6%,5%)}}
+.intro .cap{position:absolute;inset:0;margin:auto;width:100%;height:auto;max-height:100%;object-fit:contain;will-change:transform,filter,opacity;opacity:0;backface-visibility:hidden;filter:drop-shadow(0 18px 24px rgba(0,0,0,.6))}
 .intro .shadow{position:absolute;left:50%;bottom:-18%;width:60%;height:10%;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.10),transparent);filter:blur(6px)}
 .intro .name{position:absolute;left:0;right:0;bottom:calc(14% + env(safe-area-inset-bottom,0px));text-align:center;display:grid;gap:8px;opacity:0;padding-inline:16px}
 .intro .name b{font:500 clamp(26px,7vw,40px)/1 var(--display);letter-spacing:-.04em;color:var(--red);text-transform:uppercase}
@@ -180,6 +182,7 @@ section{padding-block:72px}
 </head>
 <body>
 <div class="intro" id="intro" aria-hidden="true">
+  <div class="grain" id="grain"></div>
   <button class="skip" type="button" id="introSkip">Пропустить</button>
   <div class="stage">
     <img class="cap" data-v="front" src="cap-front.webp" alt="">
@@ -420,36 +423,40 @@ section{padding-block:72px}
   const outC = t => 1 - Math.pow(1 - t, 3);
   const cl = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
   let start = null, stopped = false;
-  const T = { fly: 700, spinEnd: 2300, zoom: 2750, end: 3450 };
+  const T = { fly: 650, spinEnd: 2100, zoom: 2650, end: 3350 };
+  // grain texture
+  try { const c = document.createElement('canvas'); c.width = c.height = 180; const g = c.getContext('2d'); const d = g.createImageData(180, 180);
+    for (let i = 0; i < d.data.length; i += 4) { const v = Math.random() * 255; d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255; }
+    g.putImageData(d, 0, 0); document.getElementById('grain').style.backgroundImage = `url(${c.toDataURL()})`; } catch (e) {}
+  const views = [['front', 0], ['side', 90], ['back', 180], ['sideR', 270]];
   function frame(now) {
     if (stopped) return;
     if (start === null) start = now;
     const t = now - start;
-    // spin angle (deg): 2 turns, slowing down to face front
     const spinP = outC(cl(t / T.spinEnd));
-    const ang = 720 * spinP;
+    const ang = 720 * spinP;                      // two turns, slowing to face front
+    const vel = 720 * 3 * Math.pow(1 - cl(t / T.spinEnd), 2) / T.spinEnd * 1000; // deg/s
     const a = ((ang % 360) + 360) % 360;
-    let view, sx;
-    if (a < 45 || a >= 315) { view = 'front'; sx = Math.cos(2 * ((a + 45) % 360 - 45) * Math.PI / 180); }
-    else if (a < 135) { view = 'side'; sx = Math.cos(2 * (a - 90) * Math.PI / 180); }
-    else if (a < 225) { view = 'back'; sx = Math.cos(2 * (a - 180) * Math.PI / 180); }
-    else { view = 'side'; sx = -Math.cos(2 * (a - 270) * Math.PI / 180); }
-    sx = Math.sign(sx || 1) * Math.max(Math.abs(sx), .04);
-    // fly-in path, bob, zoom out to camera
     const fp = outC(cl(t / T.fly));
-    const x = (1 - fp) * -55, y = (1 - fp) * 38 + Math.sin(t / 380) * 2.2 * fp;
+    const x = (1 - fp) * -50, y = (1 - fp) * 42 + Math.sin(t / 380) * 2 * fp;
     const zp = ease(cl((t - T.zoom) / (T.end - T.zoom)));
-    const sc = (0.3 + 0.7 * fp) * (1 + zp * 6);
-    const tilt = (1 - fp) * -25 + Math.sin(t / 520) * 4;
-    const speed = Math.abs(Math.sin(2 * a * Math.PI / 180));
-    const blur = (1 - fp) * 6 + (t < T.spinEnd ? speed * 1.6 * (1 - spinP) : 0) + zp * 14;
-    for (const k in imgs) {
-      const el = imgs[k];
-      if (k !== view) { el.style.opacity = 0; continue; }
-      el.style.opacity = (1 - zp) * Math.min(1, t / 120);
-      el.style.transform = `translate(${x}vw, ${y}vh) rotate(${tilt}deg) scale(${sc * sx}, ${sc})`;
-      el.style.filter = `blur(${blur.toFixed(2)}px)`;
+    const sc = (0.32 + 0.68 * fp) * (1 + zp * 6);
+    const tiltZ = (1 - fp) * -30 + Math.sin(t / 520) * 5;
+    const tiltX = 12 * Math.sin(t / 300) * (1 - spinP) + (1 - fp) * 35;
+    const mblur = Math.min(5, vel / 260) + (1 - fp) * 3 + zp * 14;
+    for (const [k, base] of views) {
+      const el = imgs[k === 'sideR' ? 'side' : k];
+      let d = ((a - base + 540) % 360) - 180;        // -180..180, angle away from this view
+      const w = cl(1 - (Math.abs(d) - 25) / 30);     // crossfade window around each view
+      if (k === 'sideR') { el.dataset.r = w; } else if (k === 'side') { el.dataset.l = w; }
+      if (w <= 0) { if (k !== 'side' && k !== 'sideR') el.style.opacity = 0; continue; }
+      const mirror = k === 'sideR' ? -1 : 1;
+      el.style.opacity = w * (1 - zp) * Math.min(1, t / 120);
+      el.style.transform = `translate(${x}vw, ${y}vh) rotateZ(${tiltZ}deg) rotateX(${tiltX}deg) rotateY(${d * .55}deg) scale(${sc * mirror}, ${sc})`;
+      const light = 0.85 + 0.25 * Math.cos((a + 40) * Math.PI / 180);
+      el.style.filter = `blur(${(mblur * (0.6 + 0.4 * (1 - w))).toFixed(2)}px) brightness(${light.toFixed(3)}) drop-shadow(0 18px 24px rgba(0,0,0,.6))`;
     }
+    const sideEl = imgs.side; if ((+sideEl.dataset.l || 0) <= 0 && (+sideEl.dataset.r || 0) <= 0) sideEl.style.opacity = 0;
     shadow.style.opacity = fp * (1 - zp);
     shadow.style.transform = `translateX(-50%) scaleX(${0.8 + Math.sin(t / 380) * .1})`;
     name.style.opacity = cl((t - 900) / 400) * (1 - cl((t - T.zoom + 150) / 300));
