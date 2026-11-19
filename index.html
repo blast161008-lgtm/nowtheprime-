@@ -2870,7 +2870,7 @@ const LOOKS = [
 const HERO_LOOK = 1;
 let looksShown = false;
 function showLooks(){
-  if (looksShown || Date.now() < Date.parse(CONFIG.dateRevealAt)) return;
+  if (looksShown || (Date.now() < Date.parse(CONFIG.dateRevealAt) && !/[?&]look=prime\b/.test(location.search))) return;
   looksShown = true;
   const hero = document.querySelector(".hero figure img"), h = LOOKS[HERO_LOOK];
   if (hero){ hero.src = h.src; hero.alt = h.alt; hero.style.objectPosition = h.pos; }
