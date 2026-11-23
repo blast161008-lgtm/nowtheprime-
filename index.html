@@ -476,7 +476,7 @@ dialog::backdrop{background:rgba(20,20,20,.45);backdrop-filter:blur(6px)}
         </div>
         <p class="note" id="sbpNote">Откроется оплата в приложении банка.</p>
         <div class="phonepay" id="phonePay" hidden>
-          <span><b>Не получилось по QR?</b> Переведи по номеру телефона через СБП:</span>
+          <span><b>Оплата по СБП</b> — по номеру телефона:</span>
           <div class="num"><strong id="phoneNum"></strong><button type="button" id="copyPhone">Скопировать номер</button><span id="phoneCopied" aria-live="polite"></span></div>
           <span id="phoneMeta"></span>
         </div>
@@ -2989,6 +2989,7 @@ form.addEventListener("submit", e => {
     $("#sbpNote").textContent = touch
       ? `В приложении банка: «Оплата по QR» → «Загрузить из галереи» (или наведи камеру с другого телефона). Сумма ${sum} уже внутри — проверь и подтверди.`
       : `Сумма ${sum} и реквизиты подставятся сами — проверь и подтверди платёж. Подходит любой банк.`;
+    if (CONFIG.phone){ $("#qrBox").hidden = true; $("#sbpNote").textContent = `Переведи ${sum} по номеру телефона через СБП. В комментарии к переводу укажи номер заказа ${orderId}.`; }
   }
   $("#tgBtn").href = `https://t.me/${CONFIG.telegram}?text=${encodeURIComponent(orderText())}`;
   step(2);
